@@ -22,7 +22,7 @@ typedef struct tile_t {
 } tile_t;
 // Important creature definitions
 static creature_t player={.name="Player",.symbol='@',.color=9,.type=NULL
-	,.max_hp=50,.hp=25,.res=7,.agi=5,.wis=7,.str=6 // To-do: Randomize a little
+	,.max_hp=50,.hp=25,.res=10,.agi=5,.wis=7,.str=6 // To-do: Randomize a little
 	,.friends=".",.enemies="&",.type=NULL,.surface='B',.dimension='B'};
 static creature_t *p_addr=&player;
 static type_t monster_type={.name="Monster",.symbol='&',.color=1
@@ -453,27 +453,31 @@ bool will_flee(creature_t *flee_r,creature_t *flee_e)
 char decide_move_direction(tile_t *zone,int i)
 {
 	char dir='\0';
-	for (int j=0;j<9;j++) {
-		int char_dir=j+'1';
+	for (int j=1;j<=9;j++) {
+		if (j==5)
+			continue;
+		int char_dir=j+'0';
 		int dest=i+dir_offset(char_dir);
 		if (ABS(dest%WIDTH-i%WIDTH)==WIDTH-1||0>dest||dest>AREA-1)
 			continue;
 		// If they are not the adjacent creature's friend and fail a flee check
 		if (zone[dest].c&&!char_in_string(zone[i].c->symbol,zone[dest].c->friends)
 				&&will_flee(zone[i].c,zone[dest].c)) {
-			dir=(4-(j-4))+'1'; // Reverse direction
+			dir=(5-(j-5))+'0'; // Reverse direction
 			break;
 		}
 	}
 	if (dir)
 		return dir;
-	for (int j=0;j<9;j++) {
-		int char_dir=j+'1';
+	for (int j=1;j<=9;j++) {
+		if (j==5)
+			continue;
+		int char_dir=j+'0';
 		int dest=i+dir_offset(char_dir);
 		if (ABS(dest%WIDTH-i%WIDTH)==WIDTH-1||0>dest||dest>AREA-1)
 			continue; // If an adjacent creature is their enemy
 		if (zone[dest].c&&char_in_string(zone[dest].c->symbol,zone[i].c->enemies)) {
-			dir=j+'1'; // Go that direction
+			dir=j+'0'; // Go that direction
 			break;
 		}
 	}
@@ -811,6 +815,8 @@ void look_mode(tile_t *zone)
 	for (;look_coord<AREA;look_coord++)
 		if (zone[look_coord].c==p_addr)
 			break;
+	if (look_coord==AREA)
+		look_coord=AREA/2+WIDTH/2;
 	move_cursor(look_coord%WIDTH,look_coord/WIDTH);
 	printf("%sX%s",TERM_COLORS_40M[7],RESET_COLOR);
 	char input='.';
