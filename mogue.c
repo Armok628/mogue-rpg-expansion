@@ -23,7 +23,7 @@ typedef struct tile_t {
 // Important creature definitions
 static creature_t player={.name="Player",.symbol='@',.color=9,.type=NULL
 	,.max_hp=50,.hp=25,.res=7,.agi=5,.wis=7,.str=6 // To-do: Randomize a little
-	,.friends=".",.enemies="."};
+	,.friends=".",.enemies="&",.type=NULL,.surface='B',.dimension='B'};
 static creature_t *p_addr=&player;
 static type_t monster_type={.name="Monster",.symbol='&',.color=1
 	,.hp={50,65},.res={6,8},.agi={3,5},.wis={3,8},.str={5,9}
@@ -330,19 +330,7 @@ char move_tile(tile_t *zone,int pos,char dir)
 	// If the destination is not the source
 	if (dest!=pos) {
 		if (to->c) {
-			/*
-			// Collision printing
-			move_cursor(0,HEIGHT+lines_printed);
-			clear_line();
-			lines_printed++;
-			printf("%sAttacker: ",RESET_COLOR);
-			print_creature(from->c);
-			move_cursor(0,HEIGHT+2);
-			clear_line();
-			printf("Defender: ");
-			print_creature(to->c);
-			*/
-			// Temporary. To-do: Retreating, missing, etc.
+			// To-do: Abstract this
 			int damage=attack_damage(from->c,to->c);
 			if (damage<0) {
 				fprintf(debug_log,"%s attacked %s but missed"
@@ -469,10 +457,11 @@ char decide_move_direction(tile_t *zone,int i)
 		int char_dir=j+'1';
 		int dest=i+dir_offset(char_dir);
 		if (ABS(dest%WIDTH-i%WIDTH)==WIDTH-1||0>dest||dest>AREA-1)
-			continue; // If they are an adjacent creatures enemy and fail a flee check
-		if (zone[dest].c&&char_in_string(zone[i].c->symbol,zone[dest].c->enemies)
+			continue;
+		// If they are not the adjacent creature's friend and fail a flee check
+		if (zone[dest].c&&!char_in_string(zone[i].c->symbol,zone[dest].c->friends)
 				&&will_flee(zone[i].c,zone[dest].c)) {
-			dir=(4-(j-4))+'1'; // Opposite direction
+			dir=(4-(j-4))+'1'; // Reverse direction
 			break;
 		}
 	}
@@ -500,6 +489,9 @@ void update(tile_t *zone)
 	// For each occupied space, if it hasn't moved yet, move it
 	for (int i=0;i<AREA;i++)
 		if (creature_copies[i]&&creature_copies[i]==zone[i].c&&creature_copies[i]->hp>0&&creature_copies[i]!=p_addr) {
+			// Give it a small chance to regenerate 1 HP
+			if (zone[i].c->hp<zone[i].c->max_hp)
+				zone[i].c->hp+=0==rand()%10;
 			// Figure out what direction it should go in
 			char dir=decide_move_direction(zone,i);
 			// Perform extra actions based on collision
@@ -516,9 +508,6 @@ void update(tile_t *zone)
 	/* Redraw the player's stats */
 	move_cursor(0,HEIGHT);
 	clear_line();
-	// TEMPORARY: Chance to regenerate a little health
-	if (p_addr->hp<p_addr->max_hp&&p_addr->hp>0)
-		p_addr->hp+=0==rand()%8;
 	print_creature(p_addr);
 	/**/
 }
@@ -540,6 +529,9 @@ void spawn_player(tile_t *zone,int *pc)
 }
 char move_player(tile_t *zone,char dir,int *pc)
 {
+	// Give the player a small chance to regenerate 1 HP
+	if (p_addr->hp<p_addr->max_hp&&p_addr->hp>0)
+		p_addr->hp+=0==rand()%10;
 	// Clear lines under screen and reset counter
 	for (int i=1;i<=lines_printed;i++) {
 		move_cursor(0,HEIGHT+i);
@@ -812,9 +804,9 @@ bool make_path(tile_t *zone,int pos)
 }
 void look_mode(tile_t *zone)
 {
-	clear_screen();
-	move_cursor(0,0);
-	draw_board(zone);
+	move_cursor(0,HEIGHT);
+	clear_line();
+	printf("Inspecting tile...");
 	int look_coord=0;
 	for (;look_coord<AREA;look_coord++)
 		if (zone[look_coord].c==p_addr)
@@ -838,7 +830,7 @@ void look_mode(tile_t *zone)
 		look_coord=dest;
 		move_cursor(look_coord%WIDTH,look_coord/WIDTH);
 		printf("%sX%s",TERM_COLORS_40M[7],RESET_COLOR);
-		move_cursor(0,HEIGHT);
+		move_cursor(0,HEIGHT+1);
 		// Draw whatever is at the position under the X
 		if (zone[look_coord].c) {
 			print_creature(zone[look_coord].c);
