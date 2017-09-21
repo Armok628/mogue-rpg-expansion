@@ -200,6 +200,8 @@ type_t *random_type()
 type_t *read_type_list(const char *filename)
 {
 	FILE *creatures=fopen(filename,"r");
+	if (!creatures)
+		return NULL;
 	char *name=malloc(64);
 	type_t *list=NULL;
 	while (!feof(creatures)) {
