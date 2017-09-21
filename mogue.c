@@ -56,7 +56,11 @@ tile_t *random_tile(tile_t *zone);
 tile_t *random_empty_tile(tile_t *zone);
 tile_t *random_grass(tile_t *zone);
 tile_t *random_floor(tile_t *zone);
+int max_damage(creature_t *attacker,creature_t *defender);
+int attack_damage(creature_t *attacker,creature_t *defender);
 char move_tile(tile_t *zone,int pos,char dir);
+bool will_flee(creature_t *flee_r,creature_t *flee_e);
+char decide_move_direction(tile_t *zone,int i);
 void update (tile_t *zone);
 bool try_summon(tile_t *tile,type_t *type);
 void spawn_player(tile_t *zone,int *pc);
@@ -298,11 +302,15 @@ tile_t *random_floor(tile_t *zone)
 		return tile;
 	return (random_floor(zone));
 }
+int max_damage(creature_t *attacker,creature_t *defender)
+{
+	return 5*attacker->str-(defender->str/2);
+}
 int attack_damage(creature_t *attacker,creature_t *defender)
 {
 	int damage;
 	if (D(20)>10+defender->agi-attacker->agi) {
-		damage=5*attacker->str-(defender->str/2);
+		damage=max_damage(attacker,defender);
 		return damage<0?0:D(damage);
 	} else
 		return -1;
@@ -444,6 +452,41 @@ char move_tile(tile_t *zone,int pos,char dir)
 	} else
 		return '\0';
 }
+bool will_flee(creature_t *flee_r,creature_t *flee_e)
+{
+	// Smart creatures should be better at knowing when to flee.
+	// Others just make a guess.
+	int estimated_damage=flee_r->wis>5?max_damage(flee_e,flee_r):attack_damage(flee_e,flee_r);
+	return estimated_damage>flee_r->hp||flee_r->res*2<flee_e->str+flee_e->agi;
+}
+char decide_move_direction(tile_t *zone,int i)
+{
+	char dir='\0';
+	for (int j=0;j<9;j++) {
+		int char_dir=j+'1';
+		int dest=i+dir_offset(char_dir);
+		if (ABS(dest%WIDTH-i%WIDTH)==WIDTH-1||0>dest||dest>AREA-1)
+			continue; // If they are an adjacent creatures enemy and fail a flee check
+		if (zone[dest].c&&char_in_string(zone[i].c->symbol,zone[dest].c->enemies)
+				&&will_flee(zone[i].c,zone[dest].c)) {
+			dir=(4-(j-4))+'1'; // Opposite direction
+			break;
+		}
+	}
+	if (dir)
+		return dir;
+	for (int j=0;j<9;j++) {
+		int char_dir=j+'1';
+		int dest=i+dir_offset(char_dir);
+		if (ABS(dest%WIDTH-i%WIDTH)==WIDTH-1||0>dest||dest>AREA-1)
+			continue; // If an adjacent creature is their enemy
+		if (zone[dest].c&&char_in_string(zone[dest].c->symbol,zone[i].c->enemies)) {
+			dir=j+'1'; // Go that direction
+			break;
+		}
+	}
+	return dir?dir:'1'+rand()%9; // If there isn't a good direction to pick, move randomly
+}
 void update(tile_t *zone)
 {
 	// Make a matrix of the creatures
@@ -453,17 +496,10 @@ void update(tile_t *zone)
 		creature_copies[i]=zone[i].c;
 	// For each occupied space, if it hasn't moved yet, move it
 	for (int i=0;i<AREA;i++)
-		//if (wallcopies[i]&&wallcopies[i]==zone[i].wall&&zone[i].wall!='@')
-		if (creature_copies[i]&&creature_copies[i]->hp>0&&creature_copies[i]==zone[i].c&&zone[i].c!=p_addr) {
-			char dir='1'+rand()%9;
-			/*
-			for (int j=0;j<9;j++)
-				if (zone[i+dir_offset(j+'1')].c&&char_in_string(zone[i+dir_offset(j+'1')].c->symbol,zone[i].c->enemies)) {
-					dir=j+'1';;
-					break;
-				}
-			*/
-			// Act based on collision
+		if (creature_copies[i]&&creature_copies[i]==zone[i].c&&creature_copies[i]->hp>0&&creature_copies[i]!=p_addr) {
+			// Figure out what direction it should go in
+			char dir=decide_move_direction(zone,i);
+			// Perform extra actions based on collision
 			switch (move_tile(zone,i,dir)) {
 				case 'I':
 					//zone[i+dir_offset(dir)].wall_c=TERM_COLORS_40M[PURPLE];
