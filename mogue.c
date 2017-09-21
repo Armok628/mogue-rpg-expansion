@@ -77,6 +77,7 @@ void create_field(tile_t *field);
 void create_dungeon(tile_t *dungeon);
 int dist_to_wall(tile_t *zone,int pos,char dir);
 bool make_path(tile_t *zone,int pos);
+void look_mode(tile_t *zone);
 // Global definitions
 static char
 	*blood="\e[1;37;41m",
@@ -128,7 +129,9 @@ int main(int argc,char **argv)
 		//fprintf(debug_log,"Input registered: \'%c\'\n",input);
 		if (input=='q')
 			break;
-		if (input=='>'&&c_z[p_c].bg=='>'&&c_z[p_c].c==p_addr) {
+		if (input=='?')
+			look_mode(c_z);
+		else if (input=='>'&&c_z[p_c].bg=='>'&&c_z[p_c].c==p_addr) {
 			fprintf(debug_log,"Entering dungeon!\n");
 			c_z[p_c].c=NULL;
 			create_dungeon(dungeon);
@@ -175,7 +178,7 @@ int main(int argc,char **argv)
 			update(c_z);
 			continue;
 		} else if (input=='R'&&has_scepter
-				&&c_z[p_c].wall!='@') {
+				&&p_addr->hp<0) {
 			fprintf(debug_log,"Resurrecting player!\n");
 			c_z[p_c].c=p_addr;
 			has_scepter=false;
@@ -211,7 +214,7 @@ int main(int argc,char **argv)
 	set_terminal_canon(true);
 	printf("%s",RESET_COLOR);
 	set_cursor_visibility(1);
-	move_cursor(0,HEIGHT);
+	move_cursor(0,HEIGHT+lines_printed);
 	// Exit (success)
 	return 0;
 }
@@ -806,4 +809,49 @@ bool make_path(tile_t *zone,int pos)
 	}
 	fprintf(debug_log,"Finished making a path.\n");
 	return true;
+}
+void look_mode(tile_t *zone)
+{
+	clear_screen();
+	move_cursor(0,0);
+	draw_board(zone);
+	int look_coord=0;
+	for (;look_coord<AREA;look_coord++)
+		if (zone[look_coord].c==p_addr)
+			break;
+	move_cursor(look_coord%WIDTH,look_coord/WIDTH);
+	printf("%sX%s",TERM_COLORS_40M[7],RESET_COLOR);
+	char input='.';
+	do {
+		// Clear the info from the screen
+		for (int i=1;i<12;i++) {
+			move_cursor(0,HEIGHT+i);
+			clear_line();
+		}
+		// Check if the requested movement is out of bounds
+		int dest=look_coord+dir_offset(input);
+		if (ABS(dest%WIDTH-look_coord%WIDTH)==WIDTH-1||0>dest||dest>AREA-1)
+			continue;
+		// Get rid of the old yellow X
+		draw_pos(zone,look_coord);
+		// Update the look cursor's position and draw it
+		look_coord=dest;
+		move_cursor(look_coord%WIDTH,look_coord/WIDTH);
+		printf("%sX%s",TERM_COLORS_40M[7],RESET_COLOR);
+		move_cursor(0,HEIGHT);
+		// Draw whatever is at the position under the X
+		if (zone[look_coord].c) {
+			print_creature(zone[look_coord].c);
+			putchar('\n');
+			if (zone[look_coord].c->type) {
+				print_type(zone[look_coord].c->type);
+			} else
+				printf("[UNIQUE]");
+		}
+	} while ('q'!=(input=fgetc(stdin)));
+	draw_pos(zone,look_coord);
+	for (int i=1;i<12;i++) {
+		move_cursor(0,HEIGHT+i);
+		clear_line();
+	}
 }
