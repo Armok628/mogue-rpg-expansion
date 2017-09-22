@@ -164,6 +164,7 @@ creature_t *random_creature()
 	creature->enemies=".";
 	creature->surface='B';
 	creature->dimension='B';
+	creature->type=NULL;
 	return creature;
 }
 type_t *random_type()
@@ -174,7 +175,7 @@ type_t *random_type()
 	type->name=random_word(RAND_IN_RANGE(2,5));
 	type->name[0]-=32;
 	int i1=0,i2=0;
-	i1=D(10); i2=D(10);
+	i1=D(100); i2=D(100);
 	type->hp[0]=MIN(i1,i2);
 	type->hp[1]=MAX(i1,i2);
 	i1=D(10); i2=D(10);

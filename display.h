@@ -15,7 +15,7 @@ static char TERM_COLORS_40M[16][11]={"\e[0;30;40m","\e[1;30;40m" // Black
 	,"\e[0;37;40m","\e[1;37;40m"}; // White
 void clear_screen()
 {
-	printf("\e[2J");
+	printf("%s\e[2J",RESET_COLOR);
 }
 void clear_line()
 {

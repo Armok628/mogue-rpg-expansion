@@ -25,10 +25,6 @@ static creature_t player={.name="Player",.symbol='@',.color=9,.type=NULL
 	,.max_hp=50,.hp=25,.res=10,.agi=5,.wis=7,.str=6 // To-do: Randomize a little
 	,.friends=".",.enemies="&",.type=NULL,.surface='B',.dimension='B'};
 static creature_t *p_addr=&player;
-static type_t monster_type={.name="Monster",.symbol='&',.color=1
-	,.hp={50,65},.res={6,8},.agi={3,5},.wis={3,8},.str={5,9}
-	,.friends="&",.enemies="@",.surface='F',.dimension='B'};
-static type_t *monster=&monster_type;
 static type_t zombie_type={.name="Zombie",.symbol='Z',.color=12
 	,.hp={25,40},.res={10,10},.agi={1,2},.wis={0,0},.str={5,9}
 	,.friends=".",.enemies=".",.surface='B',.dimension='B'};
@@ -42,7 +38,6 @@ static type_t scepter_type={.name="Scepter",.symbol='I',.color=10
 	,.hp={0,0},.res={0,0},.agi={0,0},.wis={0,0},.str={0,0}
 	,.friends=".",.enemies=".",.surface='F',.dimension='D'};
 static type_t *scepter=&scepter_type;
-// Monster '&' 1 25h35 6r8 3a5 3w8 5s9 F& E@d< FB
 // Function prototypes
 void draw_tile(tile_t *tile);
 void draw_pos(tile_t *zone,int pos);
@@ -148,7 +143,6 @@ int main(int argc,char **argv)
 			c_z[p_c].c=p_addr;
 			draw_board(c_z);
 			continue;
-			/*
 		} else if (input=='z'&&has_scepter) {
 			fprintf(debug_log,"Summoning zombie!\n");
 			int target=p_c+dir_offset(fgetc(stdin));
@@ -156,14 +150,6 @@ int main(int argc,char **argv)
 			draw_pos(c_z,target);
 			update(c_z);
 			continue;
-		} else if (input=='Z'&&has_scepter) {
-			update(c_z);
-			for (int i=1;i<=9;i++) {
-				try_summon(&c_z[p_c+dir_offset(i+'0')],zombie);
-				draw_pos(c_z,p_c+dir_offset(i+'0'));
-			}
-			continue;
-			*/
 		} else if (input=='o'&&has_scepter) {
 			input=fgetc(stdin);
 			fprintf(debug_log,"Opening portal!\n");
@@ -677,9 +663,7 @@ void create_field(tile_t *field)
 	cull_walls(field);
 	fprintf(debug_log,"Summoning creatures...\n");
 	if (!typelist) {
-		// Always have monsters
-		typelist=monster;
-		typelist->next=read_type_list("index");
+		typelist=read_type_list("index");
 		//add_type(random_type(),typelist); // Get some wildcards
 		/*
 		// Print out the creature types
@@ -822,7 +806,7 @@ void look_mode(tile_t *zone)
 	char input='.';
 	do {
 		// Clear the info from the screen
-		for (int i=1;i<12;i++) {
+		for (int i=1;i<13;i++) {
 			move_cursor(0,HEIGHT+i);
 			clear_line();
 		}
@@ -843,12 +827,19 @@ void look_mode(tile_t *zone)
 			putchar('\n');
 			if (zone[look_coord].c->type) {
 				print_type(zone[look_coord].c->type);
+				int count=0;
+				for (int i=0;i<AREA;i++)
+					if (zone[i].c&&zone[i].c->type==zone[look_coord].c->type)
+						count++;
+				printf("# of this type remaining: %i",count);
 			} else
 				printf("[UNIQUE]");
 		}
 	} while ('q'!=(input=fgetc(stdin)));
+	// Get rid of the yellow X
 	draw_pos(zone,look_coord);
-	for (int i=1;i<12;i++) {
+	// Clear the info from the screen
+	for (int i=1;i<13;i++) {
 		move_cursor(0,HEIGHT+i);
 		clear_line();
 	}
