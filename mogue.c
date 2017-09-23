@@ -73,7 +73,7 @@ void create_field(tile_t *field);
 void create_dungeon(tile_t *dungeon);
 int dist_to_wall(tile_t *zone,int pos,char dir);
 bool make_path(tile_t *zone,int pos);
-void look_mode(tile_t *zone);
+void look_mode(tile_t *zone,int look_coord);
 // Global definitions
 static char
 	*blood="\e[1;37;41m",
@@ -126,7 +126,7 @@ int main(int argc,char **argv)
 		if (input=='q')
 			break;
 		if (input=='?')
-			look_mode(c_z);
+			look_mode(c_z,p_c);
 		else if (input=='>'&&c_z[p_c].bg=='>'&&c_z[p_c].c==p_addr) {
 			fprintf(debug_log,"Entering dungeon!\n");
 			c_z[p_c].c=NULL;
@@ -824,17 +824,11 @@ bool make_path(tile_t *zone,int pos)
 	fprintf(debug_log,"Finished making a path.\n");
 	return true;
 }
-void look_mode(tile_t *zone)
+void look_mode(tile_t *zone,int look_coord)
 {
 	move_cursor(0,HEIGHT);
 	clear_line();
 	printf("Inspecting tile...");
-	int look_coord=0;
-	for (;look_coord<AREA;look_coord++)
-		if (zone[look_coord].c==p_addr)
-			break;
-	if (look_coord==AREA)
-		look_coord=AREA/2+WIDTH/2;
 	move_cursor(look_coord%WIDTH,look_coord/WIDTH);
 	printf("%sX%s",TERM_COLORS_40M[7],RESET_COLOR);
 	char input='.';
