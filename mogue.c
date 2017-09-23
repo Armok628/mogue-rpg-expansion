@@ -13,6 +13,7 @@
 #define AREA (WIDTH*HEIGHT)
 #define CHECKER(x) (x%2^(x/WIDTH%2))
 #define ABS(x) ((x)<0?-(x):(x))
+#define IN_BOUNDS(dest,pos) (ABS(dest%WIDTH-pos%WIDTH)==WIDTH-1||0>dest||dest>AREA-1)
 // bool type definition
 typedef enum {false,true} bool;
 // Tile type definition
@@ -142,6 +143,14 @@ int main(int argc,char **argv)
 			for (p_c=0;c_z[p_c].bg!='>';p_c++);
 			c_z[p_c].c=p_addr;
 			draw_board(c_z);
+			continue;
+		} else if (input=='c') {
+			input=fgetc(stdin);
+			int target=p_c+dir_offset(input);
+			if (c_z[target].bg=='-'&&!c_z[target].c)
+				set_wall(&(c_z[target]),'+',TERM_COLORS_40M[BROWN]);
+			draw_pos(c_z,target);
+			update(c_z);
 			continue;
 		} else if (input=='z'&&has_scepter) {
 			fprintf(debug_log,"Summoning zombie!\n");
@@ -307,7 +316,7 @@ int attack_damage(creature_t *attacker,creature_t *defender)
 char move_tile(tile_t *zone,int pos,char dir)
 {
 	int dest=pos+dir_offset(dir);
-	if (ABS(dest%WIDTH-pos%WIDTH)==WIDTH-1||0>dest||dest>AREA-1)
+	if (IN_BOUNDS(dest,pos))
 		return '\0';
 	tile_t *from=&zone[pos],*to=&zone[dest];
 	if ((to->wall&&to->wall!='+')||(to->c&&char_in_string(to->c->symbol,from->c->friends)))
@@ -436,6 +445,28 @@ bool will_flee(creature_t *flee_r,creature_t *flee_e)
 	int estimated_damage=flee_r->wis>5?max_damage(flee_e,flee_r):attack_damage(flee_e,flee_r);
 	return estimated_damage>flee_r->hp||flee_r->res*2<flee_e->str+flee_e->agi;
 }
+///////////////////////////////////////////////////////
+char alternate_direction(tile_t *zone,int pos,char dir)
+{
+	int alts[10][2]={{0,0},{2,4},{1,3},{2,6},{1,7},{5,5},{3,9},{4,8},{7,9},{6,8}};
+	char tries[2];
+	tries[0]=alts[dir-'0'][0]+'0';
+	tries[1]=alts[dir-'0'][1]+'0';
+	bool occupied[2]={false,false};
+	for (int i=0;i<2;i++) {
+		int dest=pos+dir_offset(tries[i]);
+		if (IN_BOUNDS(dest,pos))
+			continue;
+		tile_t tile=zone[dest];
+		if (tile.c||tile.wall)
+			occupied[i]=true;
+	}
+	if (occupied[0]^occupied[1])
+		return occupied[1]?tries[0]:tries[1];
+	else
+		return occupied[0]?'\0':(rand()%2?tries[0]:tries[1]);
+}
+///////////////////////////////////////////////////////
 char decide_move_direction(tile_t *zone,int i)
 {
 	char dir='\0';
@@ -444,30 +475,33 @@ char decide_move_direction(tile_t *zone,int i)
 			continue;
 		int char_dir=j+'0';
 		int dest=i+dir_offset(char_dir);
-		if (ABS(dest%WIDTH-i%WIDTH)==WIDTH-1||0>dest||dest>AREA-1)
+		if (IN_BOUNDS(dest,i))
 			continue;
 		// If they are not the adjacent creature's friend and fail a flee check
 		if (zone[dest].c&&!char_in_string(zone[i].c->symbol,zone[dest].c->friends)
 				&&will_flee(zone[i].c,zone[dest].c)) {
 			dir=(5-(j-5))+'0'; // Reverse direction
-			break;
+			dest=i+dir_offset(dir);
+			if (zone[dest].c||zone[dest].wall) { // If the creature is blocked
+				dir=alternate_direction(zone,i,dir); // Try an alternate direction
+				dir=dir?dir:char_dir; // If cornered, fight back
+			}
+			return dir;
 		}
 	}
-	if (dir)
-		return dir;
 	for (int j=1;j<=9;j++) {
 		if (j==5)
 			continue;
 		int char_dir=j+'0';
 		int dest=i+dir_offset(char_dir);
-		if (ABS(dest%WIDTH-i%WIDTH)==WIDTH-1||0>dest||dest>AREA-1)
+		if (IN_BOUNDS(dest,i))
 			continue; // If an adjacent creature is their enemy
 		if (zone[dest].c&&char_in_string(zone[dest].c->symbol,zone[i].c->enemies)) {
 			dir=j+'0'; // Go that direction
-			break;
+			return dir;
 		}
 	}
-	return dir?dir:'1'+rand()%9; // If there isn't a good direction to pick, move randomly
+	return '1'+rand()%9; // If there isn't a good direction to pick, move randomly
 }
 void update(tile_t *zone)
 {
@@ -812,7 +846,7 @@ void look_mode(tile_t *zone)
 		}
 		// Check if the requested movement is out of bounds
 		int dest=look_coord+dir_offset(input);
-		if (ABS(dest%WIDTH-look_coord%WIDTH)==WIDTH-1||0>dest||dest>AREA-1)
+		if (IN_BOUNDS(dest,look_coord))
 			continue;
 		// Get rid of the old yellow X
 		draw_pos(zone,look_coord);
