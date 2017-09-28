@@ -13,6 +13,14 @@ static char TERM_COLORS_40M[16][11]={"\e[0;30;40m","\e[1;30;40m" // Black
 	,"\e[0;35;40m","\e[1;35;40m" // Magenta
 	,"\e[0;36;40m","\e[1;36;40m" // Cyan
 	,"\e[0;37;40m","\e[1;37;40m"}; // White
+static char TERM_COLORS_41M[16][11]={"\e[0;30;41m","\e[1;30;41m" // Black
+	,"\e[0;31;41m","\e[1;31;41m" // Red
+	,"\e[0;32;41m","\e[1;32;41m" // Green
+	,"\e[0;33;41m","\e[1;33;41m" // Yellow
+	,"\e[0;34;41m","\e[1;34;41m" // Blue
+	,"\e[0;35;41m","\e[1;35;41m" // Magenta
+	,"\e[0;36;41m","\e[1;36;41m" // Cyan
+	,"\e[0;37;41m","\e[1;37;41m"}; // White
 void clear_screen()
 {
 	printf("%s\e[2J",RESET_COLOR);

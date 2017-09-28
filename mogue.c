@@ -76,7 +76,6 @@ bool make_path(tile_t *zone,int pos);
 int look_mode(tile_t *zone,int look_coord);
 // Global definitions
 static char
-	*blood="\e[1;37;41m",
     	*grass_colors[2]={TERM_COLORS_40M[GREEN],TERM_COLORS_40M[LGREEN]},
 	*floor_colors[2]={TERM_COLORS_40M[WHITE],TERM_COLORS_40M[LGRAY]},
 	*wall_colors[2]={TERM_COLORS_40M[RED],TERM_COLORS_40M[LRED]},
@@ -125,9 +124,16 @@ int main(int argc,char **argv)
 		//fprintf(debug_log,"Input registered: \'%c\'\n",input);
 		if (input=='q')
 			break;
-		if (input=='?')
-			look_mode(c_z,p_c);
-		else if (input=='>'&&c_z[p_c].bg=='>'&&c_z[p_c].c==p_addr) {
+		if (input=='?') {
+			//look_mode(c_z,p_c);
+			// Spell targeting test: Freeze target to death
+			int target=look_mode(c_z,p_c);
+			if (target>0) {
+				c_z[target].c->hp=0;
+				move_cursor(target%WIDTH,target/WIDTH);
+				printf("%s%c",TERM_COLORS_40M[13],c_z[target].c->symbol);
+			}
+		} else if (input=='>'&&c_z[p_c].bg=='>'&&c_z[p_c].c==p_addr) {
 			fprintf(debug_log,"Entering dungeon!\n");
 			c_z[p_c].c=NULL;
 			create_dungeon(dungeon);
@@ -417,7 +423,7 @@ char move_tile(tile_t *zone,int pos,char dir)
 			fprintf(debug_log,"%c killed a %c at [%i]\n",from->c->symbol,to->c->symbol,dest);
 			// If it's not on stairs, place a corpse
 			if (!char_in_string(to->bg,"<>"))
-				set_bg(to,to->c->symbol,blood);
+				set_bg(to,to->c->symbol,TERM_COLORS_41M[to->c->color]);
 		} else if (to->c&&to->c->hp>0) {
 			return '\0';
 		}
