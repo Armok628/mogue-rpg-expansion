@@ -73,7 +73,7 @@ void create_field(tile_t *field);
 void create_dungeon(tile_t *dungeon);
 int dist_to_wall(tile_t *zone,int pos,char dir);
 bool make_path(tile_t *zone,int pos);
-void look_mode(tile_t *zone,int look_coord);
+int look_mode(tile_t *zone,int look_coord);
 // Global definitions
 static char
 	*blood="\e[1;37;41m",
@@ -824,7 +824,7 @@ bool make_path(tile_t *zone,int pos)
 	fprintf(debug_log,"Finished making a path.\n");
 	return true;
 }
-void look_mode(tile_t *zone,int look_coord)
+int look_mode(tile_t *zone,int look_coord)
 {
 	move_cursor(0,HEIGHT);
 	clear_line();
@@ -863,7 +863,7 @@ void look_mode(tile_t *zone,int look_coord)
 			} else
 				printf("[UNIQUE]");
 		}
-	} while ('q'!=(input=fgetc(stdin)));
+	} while ((input=fgetc(stdin))!='q'&&input!='\n');
 	// Get rid of the yellow X
 	draw_pos(zone,look_coord);
 	// Clear the info from the screen
@@ -871,4 +871,7 @@ void look_mode(tile_t *zone,int look_coord)
 		move_cursor(0,HEIGHT+i);
 		clear_line();
 	}
+	if (input=='\n')
+		return look_coord;
+	return -1;
 }

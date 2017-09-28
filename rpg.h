@@ -122,9 +122,9 @@ creature_t *make_creature(type_t *type)
 	creature->type=type;
 	return creature;
 }
-static char *consonants[32]={
+static char *consonants[33]={
 	"b","c","d","f","g","h","j","k","l","m","n","p","qu","r","s","t","v","w","x","y","z"
-		,"sh","ch","zh","ng","fr","st","sp","sk","tr","kr","fl"};
+		,"sh","ch","zh","ng","fr","st","sp","sk","tr","kr","fl","gn"};
 static char *vowels[36]={
 	"a","e","i","o","u","y"
 		,"aa","ae","ai","ao","au","ay"
@@ -139,9 +139,9 @@ char *random_word(int length)
 	int vowel_start=rand()%2;
 	for (int i=0;i<length;i++) {
 		if (vowel_start^(i%2))
-			strcat(word,vowels[rand()%32]);
+			strcat(word,vowels[rand()%36]);
 		else
-			strcat(word,consonants[rand()%36]);
+			strcat(word,consonants[rand()%33]);
 	}
 	word=realloc(word,strlen(word));
 	return word;
