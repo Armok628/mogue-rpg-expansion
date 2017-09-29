@@ -1,9 +1,7 @@
-//static int debug_counter=0; move_cursor(0,HEIGHT+3); printf("DEBUG %i\n",debug_counter); debug_counter++;
 // To-do: Fix code formatting
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-#include <unistd.h> // Temporary
 #include "display.h"
 #include "rpg.h"
 #define NEW(x) malloc(sizeof(x))
@@ -14,18 +12,20 @@
 #define CHECKER(x) (x%2^(x/WIDTH%2))
 #define ABS(x) ((x)<0?-(x):(x))
 #define IN_BOUNDS(dest,pos) (ABS(dest%WIDTH-pos%WIDTH)==WIDTH-1||0>dest||dest>AREA-1)
+#define NEXT_LINE() move_cursor(0,HEIGHT+lines_printed); lines_printed++;
 // bool type definition
 typedef enum {false,true} bool;
 // Tile type definition
 typedef struct tile_t {
 	creature_t *c;
+	creature_t *corpse;
 	char wall,*wall_c,bg,*bg_c;
 } tile_t;
 // Important creature definitions
-static creature_t player={.name="Player",.symbol='@',.color=9,.type=NULL
+static creature_t player_c={.name="Player",.symbol='@',.color=9,.type=NULL
 	,.max_hp=50,.hp=25,.res=10,.agi=5,.wis=7,.str=6 // To-do: Randomize a little
 	,.friends=".",.enemies="&",.type=NULL,.surface='B',.dimension='B'};
-static creature_t *p_addr=&player;
+static creature_t *player=&player_c;
 static type_t zombie_type={.name="Zombie",.symbol='Z',.color=12
 	,.hp={25,40},.res={10,10},.agi={1,2},.wis={0,0},.str={5,9}
 	,.friends=".",.enemies=".",.surface='B',.dimension='B'};
@@ -74,6 +74,8 @@ void create_dungeon(tile_t *dungeon);
 int dist_to_wall(tile_t *zone,int pos,char dir);
 bool make_path(tile_t *zone,int pos);
 int look_mode(tile_t *zone,int look_coord);
+spell_t *pick_spell(creature_t *c);
+void cast_spell(tile_t *zone,creature_t *caster,spell_t *spell);
 // Global definitions
 static char
     	*grass_colors[2]={TERM_COLORS_40M[GREEN],TERM_COLORS_40M[LGREEN]},
@@ -94,7 +96,7 @@ int main(int argc,char **argv)
 	if (argc>1) {
 		sscanf(argv[1],"%u",&seed);
 	}
-	fprintf(debug_log,"Seed: %u\n",seed);
+	//fprintf(debug_log),"Seed: %u\n",seed);
 	srand(seed);
 	// Set terminal attributes
 	set_terminal_canon(false);
@@ -113,7 +115,7 @@ int main(int argc,char **argv)
 	clear_screen();
 	draw_board(c_z);
 	move_cursor(0,HEIGHT);
-	print_creature(p_addr);
+	print_creature(player);
 	// Control loop
 	char input;
 	bool has_scepter=false;
@@ -121,33 +123,26 @@ int main(int argc,char **argv)
 		input=fgetc(stdin);
 		if (input==27&&fgetc(stdin)==91)
 			input=fgetc(stdin);
-		//fprintf(debug_log,"Input registered: \'%c\'\n",input);
+		////fprintf(debug_log),"Input registered: \'%c\'\n",input);
 		if (input=='q')
 			break;
 		if (input=='?') {
-			//look_mode(c_z,p_c);
-			// Spell targeting test: Freeze target to death
-			int target=look_mode(c_z,p_c);
-			if (target>0) {
-				c_z[target].c->hp=0;
-				move_cursor(target%WIDTH,target/WIDTH);
-				printf("%s%c",TERM_COLORS_40M[13],c_z[target].c->symbol);
-			}
-		} else if (input=='>'&&c_z[p_c].bg=='>'&&c_z[p_c].c==p_addr) {
-			fprintf(debug_log,"Entering dungeon!\n");
+			look_mode(c_z,p_c);
+		} else if (input=='>'&&c_z[p_c].bg=='>'&&c_z[p_c].c==player) {
+			//fprintf(debug_log),"Entering dungeon!\n");
 			c_z[p_c].c=NULL;
 			create_dungeon(dungeon);
 			c_z=dungeon;
 			for (p_c=0;c_z[p_c].bg!='<';p_c++);
-			c_z[p_c].c=p_addr;
+			c_z[p_c].c=player;
 			draw_board(c_z);
 			continue;
-		} else if (input=='<'&&c_z[p_c].bg=='<'&&c_z[p_c].c==p_addr) {
-			fprintf(debug_log,"Exiting dungeon!\n");
+		} else if (input=='<'&&c_z[p_c].bg=='<'&&c_z[p_c].c==player) {
+			//fprintf(debug_log),"Exiting dungeon!\n");
 			c_z[p_c].c=NULL;
 			c_z=field;
 			for (p_c=0;c_z[p_c].bg!='>';p_c++);
-			c_z[p_c].c=p_addr;
+			c_z[p_c].c=player;
 			draw_board(c_z);
 			continue;
 		} else if (input=='c') {
@@ -159,7 +154,7 @@ int main(int argc,char **argv)
 			update(c_z);
 			continue;
 		} else if (input=='z'&&has_scepter) {
-			fprintf(debug_log,"Summoning zombie!\n");
+			//fprintf(debug_log),"Summoning zombie!\n");
 			int target=p_c+dir_offset(fgetc(stdin));
 			try_summon(&c_z[target],zombie);
 			draw_pos(c_z,target);
@@ -167,7 +162,7 @@ int main(int argc,char **argv)
 			continue;
 		} else if (input=='o'&&has_scepter) {
 			input=fgetc(stdin);
-			fprintf(debug_log,"Opening portal!\n");
+			//fprintf(debug_log),"Opening portal!\n");
 			int target=p_c+2*dir_offset(input);
 			if (!c_z[p_c+dir_offset(input)].wall
 					&&!c_z[p_c+dir_offset(input)].c
@@ -179,12 +174,12 @@ int main(int argc,char **argv)
 			update(c_z);
 			continue;
 		} else if (input=='R'&&has_scepter
-				&&p_addr->hp<0) {
-			fprintf(debug_log,"Resurrecting player!\n");
-			c_z[p_c].c=p_addr;
+				&&player->hp<0) {
+			//fprintf(debug_log),"Resurrecting player!\n");
+			c_z[p_c].c=player;
 			has_scepter=false;
-			p_addr->color=9;
-			p_addr->hp=1;
+			player->color=9;
+			player->hp=1;
 			draw_pos(c_z,p_c);
 		} else if (input=='S') {
 			clear_screen();
@@ -194,18 +189,18 @@ int main(int argc,char **argv)
 		switch (move_player(c_z,input,&p_c)) {
 			case 'I':
 				has_scepter=true;
-				p_addr->color=10;
+				player->color=10;
 				draw_pos(c_z,p_c);
 				break;
 			case 'O':
-				fprintf(debug_log,"Entering portal!\n");
+				//fprintf(debug_log),"Entering portal!\n");
 				create_field(field);
-				fprintf(debug_log,"Spawning player...\n");
+				//fprintf(debug_log),"Spawning player...\n");
 				spawn_player(field,&p_c);
-				field[p_c].c=p_addr;
+				field[p_c].c=player;
 				draw_board(field);
 				c_z=field;
-				fprintf(debug_log,"Done!\n");
+				//fprintf(debug_log),"Done!\n");
 				continue;
 
 		}
@@ -215,7 +210,7 @@ int main(int argc,char **argv)
 	set_terminal_canon(true);
 	printf("%s",RESET_COLOR);
 	set_cursor_visibility(1);
-	move_cursor(0,HEIGHT+lines_printed);
+	NEXT_LINE();
 	// Exit (success)
 	return 0;
 }
@@ -223,18 +218,15 @@ int main(int argc,char **argv)
 void draw_tile(tile_t *tile)
 {
 	if (tile->c)
-		printf("%s%c",TERM_COLORS_40M[tile->c->color],tile->c->symbol);
+		printf("%s%c",TERM_COLORS_40M[tile->c->color]
+				,tile->c->symbol);
+	else if (tile->corpse)
+		printf("%s%c",TERM_COLORS_41M[tile->corpse->color]
+				,tile->corpse->symbol);
 	else if (tile->wall)
 		printf("%s%c",tile->wall_c,tile->wall);
 	else
 		printf("%s%c",tile->bg_c,tile->bg);
-	/*
-	if (tile->c)
-		printf("%s%c",tile->c->hp>0?TERM_COLORS_40M[tile->c->color]:blood
-				,tile->c->symbol);
-	else
-		printf("%s%c",tile->bg_c,tile->bg);
-	*/
 }
 void draw_pos(tile_t *zone,int pos)
 {
@@ -334,12 +326,8 @@ char move_tile(tile_t *zone,int pos,char dir)
 			// To-do: Abstract this
 			int damage=attack_damage(from->c,to->c);
 			if (damage<0) {
-				fprintf(debug_log,"%s attacked %s but missed"
-						,from->c->name
-						,to->c->name);
-				move_cursor(0,HEIGHT+lines_printed);
-				clear_line();
-				lines_printed++;
+				//fprintf(debug_log),"%s attacked %s but missed",from->c->name,to->c->name);
+				NEXT_LINE();
 				printf("%s%c%s attacked %s%c%s but missed"
 						,TERM_COLORS_40M[from->c->color]
 						,from->c->symbol
@@ -348,12 +336,8 @@ char move_tile(tile_t *zone,int pos,char dir)
 						,to->c->symbol
 						,RESET_COLOR);
 			} else if (damage==0) {
-				fprintf(debug_log,"%s attacked %s but was too weak to cause damage"
-						,from->c->name
-						,to->c->name);
-				move_cursor(0,HEIGHT+lines_printed);
-				clear_line();
-				lines_printed++;
+				//fprintf(debug_log),"%s attacked %s but was too weak to cause damage",from->c->name,to->c->name);
+				NEXT_LINE();
 				printf("%s%c%s attacked %s%c%s but was too weak to cause damage"
 						,TERM_COLORS_40M[from->c->color]
 						,from->c->symbol
@@ -362,13 +346,8 @@ char move_tile(tile_t *zone,int pos,char dir)
 						,to->c->symbol
 						,RESET_COLOR);
 			} else {
-				fprintf(debug_log,"%s attacked %s for %i damage"
-						,from->c->name
-						,to->c->name
-						,damage);
-				move_cursor(0,HEIGHT+lines_printed);
-				clear_line();
-				lines_printed++;
+				//fprintf(debug_log),"%s attacked %s for %i damage",from->c->name,to->c->name,damage);
+				NEXT_LINE();
 				printf("%s%c%s attacked %s%c%s for %i damage"
 						,TERM_COLORS_40M[from->c->color]
 						,from->c->symbol
@@ -380,12 +359,12 @@ char move_tile(tile_t *zone,int pos,char dir)
 				to->c->hp-=damage;
 			}
 			if (to->c->hp>0) {
-				fprintf(debug_log,". It has %i health left.\n",to->c->hp);
+				//fprintf(debug_log),". It has %i health left.\n",to->c->hp);
 				printf(". It has %i health left.\n",to->c->hp);
 				return '\0';
 			}
 			else { // To-do: Special cases for entering portals or collecting scepters
-				fprintf(debug_log,", killing it!\n");
+				//fprintf(debug_log),", killing it!\n");
 				printf(", killing it!\n");
 			}
 		}
@@ -401,8 +380,8 @@ char move_tile(tile_t *zone,int pos,char dir)
 		// If there was a creature there and it is dead now
 		if (to->c&&to->c->hp<=0) {
 			if (to->c->symbol=='O') { // If it was a portal
-				fprintf(debug_log,"%c entered a portal!\n",from->c->symbol);
-				if (from->c!=p_addr) // If the player didn't enter it
+				//fprintf(debug_log),"%c entered a portal!\n",from->c->symbol);
+				if (from->c!=player) // If the player didn't enter it
 					free(from->c);
 				from->c=NULL;
 				free(to->c);
@@ -411,7 +390,7 @@ char move_tile(tile_t *zone,int pos,char dir)
 				draw_pos(zone,dest);
 				return 'O';
 			} else if (to->c->symbol=='I') {
-				fprintf(debug_log,"%c picked up a scepter!\n",from->c->symbol);
+				//fprintf(debug_log),"%c picked up a scepter!\n",from->c->symbol);
 				free(to->c);
 				to->c=from->c;
 				from->c=NULL;
@@ -420,22 +399,22 @@ char move_tile(tile_t *zone,int pos,char dir)
 				return 'I';
 			}
 			killed=to->c->symbol; // Remember what was killed
-			fprintf(debug_log,"%c killed a %c at [%i]\n",from->c->symbol,to->c->symbol,dest);
+			//fprintf(debug_log),"%c killed a %c at [%i]\n",from->c->symbol,to->c->symbol,dest);
 			// If it's not on stairs, place a corpse
-			if (!char_in_string(to->bg,"<>"))
-				set_bg(to,to->c->symbol,TERM_COLORS_41M[to->c->color]);
+			if (!char_in_string(to->bg,"<>")) {
+				free(to->corpse);
+				to->corpse=to->c;
+				to->c=NULL;
+				//set_bg(to,to->c->symbol,TERM_COLORS_41M[to->c->color]);
+			}
 		} else if (to->c&&to->c->hp>0) {
 			return '\0';
 		}
-		// Move the symbol and color
-		//set_wall(to,from->wall,from->wall_c);
-		/**/
-		if ((to->c)&&to->c!=p_addr)
+		// Move the creature
+		if ((to->c)&&to->c!=player)
 			free(to->c);
 		to->c=from->c;
 		from->c=NULL;
-		/**/
-		set_wall(from,'\0',NULL);
 		// Redraw the changed positions
 		draw_pos(zone,pos);
 		draw_pos(zone,dest);
@@ -451,7 +430,6 @@ bool will_flee(creature_t *flee_r,creature_t *flee_e)
 	int estimated_damage=flee_r->wis>5?max_damage(flee_e,flee_r):attack_damage(flee_e,flee_r);
 	return estimated_damage>flee_r->hp||flee_r->res*2<flee_e->str+flee_e->agi;
 }
-///////////////////////////////////////////////////////
 char alternate_direction(tile_t *zone,int pos,char dir)
 {
 	int alts[10][2]={{0,0},{2,4},{1,3},{2,6},{1,7},{5,5},{3,9},{4,8},{7,9},{6,8}};
@@ -472,7 +450,6 @@ char alternate_direction(tile_t *zone,int pos,char dir)
 	else
 		return occupied[0]?'\0':(rand()%2?tries[0]:tries[1]);
 }
-///////////////////////////////////////////////////////
 char decide_move_direction(tile_t *zone,int i)
 {
 	char dir='\0';
@@ -518,7 +495,9 @@ void update(tile_t *zone)
 		creature_copies[i]=zone[i].c;
 	// For each occupied space, if it hasn't moved yet, move it
 	for (int i=0;i<AREA;i++)
-		if (creature_copies[i]&&creature_copies[i]==zone[i].c&&creature_copies[i]->hp>0&&creature_copies[i]!=p_addr) {
+		if (creature_copies[i]&&creature_copies[i]==zone[i].c
+				&&creature_copies[i]->hp>0
+				&&creature_copies[i]!=player) {
 			// Give it a small chance to regenerate 1 HP
 			if (zone[i].c->hp<zone[i].c->max_hp)
 				zone[i].c->hp+=0==rand()%10;
@@ -538,7 +517,7 @@ void update(tile_t *zone)
 	/* Redraw the player's stats */
 	move_cursor(0,HEIGHT);
 	clear_line();
-	print_creature(p_addr);
+	print_creature(player);
 	/**/
 }
 bool try_summon(tile_t *tile,type_t *type)
@@ -553,26 +532,32 @@ void spawn_player(tile_t *zone,int *pc)
 {
 	*pc=rand()%AREA;
 	if (!zone[*pc].wall&&!zone[*pc].c)
-		zone[*pc].c=p_addr;
+		zone[*pc].c=player;
 	else
 		spawn_player(zone,pc);
 }
 char move_player(tile_t *zone,char dir,int *pc)
 {
 	// Give the player a small chance to regenerate 1 HP
-	if (p_addr->hp<p_addr->max_hp&&p_addr->hp>0)
-		p_addr->hp+=0==rand()%10;
+	if (player->hp<player->max_hp&&player->hp>0)
+		player->hp+=0==rand()%10;
 	// Clear lines under screen and reset counter
 	for (int i=1;i<=lines_printed;i++) {
 		move_cursor(0,HEIGHT+i);
 		clear_line();
 	}
 	lines_printed=1;
-	// Player can't move without health
-	if (p_addr->hp<0)
+	// Player can't do anything without health
+	if (player->hp<0)
 		return '\0';
+	if (dir=='m') { // If the player is casting something
+		spell_t *spell=pick_spell(player);
+		if (spell)
+			cast_spell(zone,player,spell);
+		return '\0';
+	}
 	char result='\0';
-	if (zone[*pc].c!=p_addr) // If the player coordinate has the wrong address
+	if (zone[*pc].c!=player) // If the player coordinate has the wrong address
 		return '\0'; // Don't move
 	result=move_tile(zone,*pc,dir); // Move the player
 	if (result)
@@ -689,19 +674,21 @@ tile_t *find_surface(tile_t *zone,char surface)
 void create_field(tile_t *field)
 {
 	int typelist_length=0;
-	fprintf(debug_log,"Growing grass...\n");
+	//fprintf(debug_log),"Growing grass...\n");
 	for (int i=0;i<AREA;i++) {
 		set_tile(&field[i],'\0',NULL,grass_chars[rand()%5]
 				,grass_colors[rand()%2]);
 		free(field[i].c);
+		free(field[i].corpse);
 		field[i].c=NULL;// (and removing old creatures)
+		field[i].corpse=NULL;
 	}
-	fprintf(debug_log,"Building buildings...\n");
+	//fprintf(debug_log),"Building buildings...\n");
 	for (int i=0;i<AREA/96;i++)
 		make_random_building(field);
-	fprintf(debug_log,"Culling walls...\n");
+	//fprintf(debug_log),"Culling walls...\n");
 	cull_walls(field);
-	fprintf(debug_log,"Summoning creatures...\n");
+	//fprintf(debug_log),"Summoning creatures...\n");
 	if (!typelist) {
 		typelist=read_type_list("index");
 		//add_type(random_type(),typelist); // Get some wildcards
@@ -730,27 +717,29 @@ void create_field(tile_t *field)
 	}
 	// Summon a random beast
 	random_empty_tile(field)->c=random_creature();
-	fprintf(debug_log,"Digging stairwell...\n");
+	//fprintf(debug_log),"Digging stairwell...\n");
 	set_bg(random_floor(field),'>',TERM_COLORS_40M[BROWN]);
-	fprintf(debug_log,"Opening portal...");
+	//fprintf(debug_log),"Opening portal...");
 	random_grass(field)->c=make_creature(portal);
-	fprintf(debug_log,"Done!\n");
+	//fprintf(debug_log),"Done!\n");
 }
 void create_dungeon(tile_t *dungeon)
 {
 	int m=AREA/96,b=AREA/96,typelist_length=0;
-	fprintf(debug_log,"Placing rocks...\n");
+	//fprintf(debug_log),"Placing rocks...\n");
 	for (int i=0;i<AREA;i++) {
 		set_tile(&dungeon[i],'%',rock_colors[rand()%2],'\0',NULL);
 		free(dungeon[i].c);
+		free(dungeon[i].corpse);
 		dungeon[i].c=NULL; // (and removing old creatures)
+		dungeon[i].corpse=NULL;
 	}
-	fprintf(debug_log,"Carving rooms...\n");
+	//fprintf(debug_log),"Carving rooms...\n");
 	for (int i=0;i<b;i++)
 		make_random_building(dungeon);
-	fprintf(debug_log,"Culling walls...\n");
+	//fprintf(debug_log),"Culling walls...\n");
 	cull_walls(dungeon);
-	fprintf(debug_log,"Spawning creatures...\n");
+	//fprintf(debug_log),"Spawning creatures...\n");
 	for (type_t *t=typelist;t;t=t->next)
 		if (t->dimension!='F')
 			typelist_length++;
@@ -763,16 +752,16 @@ void create_dungeon(tile_t *dungeon)
 			i++;
 		}
 	}
-	fprintf(debug_log,"Crafting scepter...\n");
+	//fprintf(debug_log),"Crafting scepter...\n");
 	random_empty_tile(dungeon)->c=make_creature(scepter);
-	fprintf(debug_log,"Digging stairwell...\n");
+	//fprintf(debug_log),"Digging stairwell...\n");
 	set_bg(random_floor(dungeon),'<',TERM_COLORS_40M[BROWN]);
 	if (b>1) {
-		fprintf(debug_log,"Mapping tunnels...\n");
+		//fprintf(debug_log),"Mapping tunnels...\n");
 		for (int i=0;i<AREA/240;i++)
 			while (!make_path(dungeon,rand()%AREA));
 	}
-	fprintf(debug_log,"Done!\n");
+	//fprintf(debug_log),"Done!\n");
 }
 int dist_to_wall(tile_t *zone,int pos,char dir)
 {
@@ -790,13 +779,13 @@ int dist_to_wall(tile_t *zone,int pos,char dir)
 }
 bool make_path(tile_t *zone,int pos)
 {
-	fprintf(debug_log,"Trying to make a path at %i.\n",pos);
+	//fprintf(debug_log),"Trying to make a path at %i.\n",pos);
 	if (!char_in_string(zone[pos].bg,grass_chars)&&zone[pos].bg) {
-		fprintf(debug_log,"Invalid path origin.\n");
+		//fprintf(debug_log),"Invalid path origin.\n");
 		return false;
 	}
-	fprintf(debug_log,"Start position looks okay...\n");
-	fprintf(debug_log,"Trying to determining path direction...\n");
+	//fprintf(debug_log),"Start position looks okay...\n");
+	//fprintf(debug_log),"Trying to determining path direction...\n");
 	int dist[2]={AREA,AREA};
 	char dirs[2]={'\0','\0'};
 	for (int i=1;i<=4;i++) {
@@ -815,10 +804,10 @@ bool make_path(tile_t *zone,int pos)
 		}
 	}
 	if (dist[1]==AREA||!dirs[1]) {
-		fprintf(debug_log,"No valid path direction. Stopping.\n");
+		//fprintf(debug_log),"No valid path direction. Stopping.\n");
 		return false;
 	}
-	fprintf(debug_log,"Placing path tiles...\n");
+	//fprintf(debug_log),"Placing path tiles...\n");
 	for (int i=0;i<2;i++) {
 		int d=pos+dist[i]*dir_offset(dirs[i]);
 		for (int j=0;j<dist[i];j++) {
@@ -827,7 +816,7 @@ bool make_path(tile_t *zone,int pos)
 		}
 		set_door(&zone[d]);
 	}
-	fprintf(debug_log,"Finished making a path.\n");
+	//fprintf(debug_log),"Finished making a path.\n");
 	return true;
 }
 int look_mode(tile_t *zone,int look_coord)
@@ -880,4 +869,117 @@ int look_mode(tile_t *zone,int look_coord)
 	if (input=='\n')
 		return look_coord;
 	return -1;
+}
+spell_t touch={.name="Deathly Touch",.cost=100,.target=TOUCH,.effect=DAMAGE};
+spell_t missile={.name="Missile",.cost=30,.target=TARGET,.effect=DAMAGE/**/,.next=&touch/**/};
+spell_t mend={.name="Mend",.cost=20,.target=SELF,.effect=HEAL/**/,.next=&missile/**/};
+spell_t raise={.name="Raise",.cost=100,.target=TARGET,.effect=RESURRECT/**/,.next=&mend/**/};
+spell_t *pick_spell(creature_t *c)
+{
+	/**/
+	if (!player->spell)
+		player->spell=&raise;
+	/**/
+	for (int i=1;i<lines_printed;i++) {
+		move_cursor(0,HEIGHT+i);
+		clear_line();
+	}
+	lines_printed=1;
+	for (spell_t *s=c->spell;s;s=s->next) {
+		NEXT_LINE();
+		print_spell(s);
+	}
+	int num_spells=lines_printed-2,selected=0;
+	spell_t *spell;
+	char input='.';
+	do {
+		// Reset the color of the last spell highlighted
+		spell=c->spell;
+		for (int i=0;i<selected;i++)
+			spell=spell->next;
+		move_cursor(0,HEIGHT+selected+1);
+		printf("%s%s",RESET_COLOR,spell->name);
+		if (dir_offset(input)==WIDTH&&selected<num_spells)
+			selected++;
+		else if (dir_offset(input)==-WIDTH&&selected>0)
+			selected--;
+		// Reprint the current spell with a brighter color
+		spell=c->spell;
+		for (int i=0;i<selected;i++)
+			spell=spell->next;
+		move_cursor(0,HEIGHT+selected+1);
+		printf("\e[1;33;44m%s",spell->name); // (yellow on blue)
+	} while ((input=fgetc(stdin))!='q'&&input!='\n');
+	// Clean up
+	for (int i=0;i<lines_printed;i++) {
+		move_cursor(0,HEIGHT+i);
+		clear_line();
+	}
+	lines_printed=1;
+	if (input=='q')
+		return NULL;
+	return spell;
+}
+void cast_spell(tile_t *zone,creature_t *caster,spell_t *spell)
+{
+	// Find the coordinate of the caster
+	int caster_coord=0;
+	for (;caster_coord<AREA;caster_coord++)
+		if (zone[caster_coord].c==caster)
+			break;
+	if (rand()%10<1+(spell->cost/10)-caster->wis) {
+		NEXT_LINE();
+		printf("%s%c%s tried to cast %s but failed!"
+				,TERM_COLORS_40M[caster->color]
+				,caster->symbol
+				,RESET_COLOR
+				,spell->name);
+		return;
+	}
+	int target_coord;
+	switch (spell->target) {
+		case SELF:
+			target_coord=caster_coord;
+			break;
+		case TOUCH:
+			target_coord=caster_coord+dir_offset(fgetc(stdin));
+			break;
+		case TARGET:
+			target_coord=look_mode(zone,caster_coord);
+			break;
+	}
+	tile_t *target=&zone[target_coord];
+	if (!target)
+		return;
+	int effect=1+rand()%(spell->cost/(11-caster->wis));
+	switch (spell->effect) {
+		case HEAL:
+			target->c->hp+=effect;
+			if (target->c->hp>target->c->max_hp)
+				target->c->hp=target->c->max_hp;
+			break;
+		case DAMAGE:
+			target->c->hp-=effect;
+			break;
+		case RESURRECT:
+			if (target->c)
+				break;
+			target->c=target->corpse;
+			target->corpse=NULL;
+			target->c->hp=effect;
+			if (target->c->hp>target->c->max_hp)
+				target->c->hp=target->c->max_hp;
+			/*
+			target->c->friends=realloc(target->c->friends,strlen(target->c->friends)+1);
+			target->c->friends[strlen(target->c->friends)]='@';
+			*/
+			draw_pos(zone,target_coord);
+	}
+	NEXT_LINE();
+	printf("%s%c%s casts %s with an effect of %i\n" // To-do: Give specific wording
+			,TERM_COLORS_40M[caster->color]
+			,caster->symbol
+			,RESET_COLOR
+			,spell->name
+			,effect);
 }

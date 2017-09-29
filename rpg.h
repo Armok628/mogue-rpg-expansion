@@ -9,23 +9,24 @@
 #define D(n) (1+rand()%n)
 #define MAX(x,y) (x>y?x:y)
 #define MIN(x,y) (x>y?y:x)
+typedef unsigned char byte;
 /*
 enum itemflags_e {WEAPON=1,ARMOR=2,MAGIC=4,CURSED=8};
-typedef unsigned char byte;
 typedef struct {
 	char *name;
 	int value;
 	byte flags;
 } item_t;
-enum spellflags_target_e {TOUCH=1,BEAM=2,TARGET=4,AOE=8};
-enum spellflags_effect_e {DAMAGE=1,HEAL=2,RESURRECT=256};
-typedef struct {
+*/
+enum spellflags_target_e {SELF=1,TOUCH=2,TARGET=4};
+enum spellflags_effect_e {DAMAGE=1,HEAL=2,RESURRECT=255};
+typedef struct spell_e {
 	char *name;
 	int cost;
-	byte targeting;
+	byte target;
 	byte effect;
+	struct spell_e *next;
 } spell_t;
-*/
 typedef struct type_s {
 	int res[2],agi[2],wis[2],str[2],hp[2],color;
 	char *name,symbol,*friends,*enemies,surface,dimension;
@@ -35,6 +36,7 @@ typedef struct {
 	int res,agi,wis,str,max_hp,hp,color;
 	char *name,symbol,*friends,*enemies,surface,dimension;
 	type_t *type;
+	spell_t *spell;
 } creature_t;
 // Note: Friends can not be attacked. Enemies will be attacked.
 // Anything unmentioned can be attacked incidentally
@@ -63,6 +65,31 @@ void print_type_list(type_t *type)
 {
 	for (type_t *t=type;t;t=t->next)
 		print_type(t);
+}
+void print_spell(spell_t *spell)
+{
+	printf("%s (%i): ",spell->name,spell->cost);
+	switch (spell->effect) {
+		case DAMAGE:
+			printf("Damage ");
+			break;
+		case HEAL:
+			printf("Heal ");
+			break;
+		case RESURRECT:
+			printf("Resurrect ");
+			break;
+	}
+	switch (spell->target) {
+		case SELF:
+			printf("self\n");
+			break;
+		case TOUCH:
+			printf("touched creature\n");
+			break;
+		case TARGET:
+			printf("targeted creature\n");
+	}
 }
 type_t *read_type (char *filename)
 {
