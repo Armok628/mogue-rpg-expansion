@@ -75,7 +75,7 @@ int dist_to_wall(tile_t *zone,int pos,char dir);
 bool make_path(tile_t *zone,int pos);
 int look_mode(tile_t *zone,int look_coord);
 spell_t *pick_spell(creature_t *c);
-void cast_spell(tile_t *zone,creature_t *caster,spell_t *spell);
+void cast_spell(tile_t *zone,int caster_coord,spell_t *spell);
 // Global definitions
 static char
     	*grass_colors[2]={TERM_COLORS_40M[GREEN],TERM_COLORS_40M[LGREEN]},
@@ -553,7 +553,7 @@ char move_player(tile_t *zone,char dir,int *pc)
 	if (dir=='m') { // If the player is casting something
 		spell_t *spell=pick_spell(player);
 		if (spell)
-			cast_spell(zone,player,spell);
+			cast_spell(zone,*pc,spell);
 		return '\0';
 	}
 	char result='\0';
@@ -920,13 +920,9 @@ spell_t *pick_spell(creature_t *c)
 		return NULL;
 	return spell;
 }
-void cast_spell(tile_t *zone,creature_t *caster,spell_t *spell)
+void cast_spell(tile_t *zone,int caster_coord,spell_t *spell)
 {
-	// Find the coordinate of the caster
-	int caster_coord=0;
-	for (;caster_coord<AREA;caster_coord++)
-		if (zone[caster_coord].c==caster)
-			break;
+	creature_t *caster=zone[caster_coord].c;
 	if (rand()%10<1+(spell->cost/10)-caster->wis) {
 		NEXT_LINE();
 		printf("%s%c%s tried to cast %s but failed!"
