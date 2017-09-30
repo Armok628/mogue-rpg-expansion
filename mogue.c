@@ -11,7 +11,7 @@
 #define AREA (WIDTH*HEIGHT)
 #define CHECKER(x) (x%2^(x/WIDTH%2))
 #define ABS(x) ((x)<0?-(x):(x))
-#define IN_BOUNDS(dest,pos) (ABS(dest%WIDTH-pos%WIDTH)==WIDTH-1||0>dest||dest>AREA-1)
+#define OUT_OF_BOUNDS(dest,pos) (ABS(dest%WIDTH-pos%WIDTH)==WIDTH-1||0>dest||dest>AREA-1)
 #define NEXT_LINE() move_cursor(0,HEIGHT+lines_printed); lines_printed++;
 // bool type definition
 typedef enum {false,true} bool;
@@ -90,7 +90,7 @@ static FILE *debug_log;
 int main(int argc,char **argv)
 {
 	// Open the debug log
-	debug_log=fopen("debug.log","w+");
+	//debug_log=fopen("debug.log","w+");
 	// Seed the RNG
 	unsigned int seed=time(NULL);
 	if (argc>1) {
@@ -177,6 +177,7 @@ int main(int argc,char **argv)
 				&&player->hp<0) {
 			//fprintf(debug_log),"Resurrecting player!\n");
 			c_z[p_c].c=player;
+			c_z[p_c].corpse=NULL;
 			has_scepter=false;
 			player->color=9;
 			player->hp=1;
@@ -314,7 +315,7 @@ int attack_damage(creature_t *attacker,creature_t *defender)
 char move_tile(tile_t *zone,int pos,char dir)
 {
 	int dest=pos+dir_offset(dir);
-	if (IN_BOUNDS(dest,pos))
+	if (OUT_OF_BOUNDS(dest,pos))
 		return '\0';
 	tile_t *from=&zone[pos],*to=&zone[dest];
 	if ((to->wall&&to->wall!='+')||(to->c&&char_in_string(to->c->symbol,from->c->friends)))
@@ -439,7 +440,7 @@ char alternate_direction(tile_t *zone,int pos,char dir)
 	bool occupied[2]={false,false};
 	for (int i=0;i<2;i++) {
 		int dest=pos+dir_offset(tries[i]);
-		if (IN_BOUNDS(dest,pos))
+		if (OUT_OF_BOUNDS(dest,pos))
 			continue;
 		tile_t tile=zone[dest];
 		if (tile.c||tile.wall)
@@ -458,14 +459,14 @@ char decide_move_direction(tile_t *zone,int i)
 			continue;
 		int char_dir=j+'0';
 		int dest=i+dir_offset(char_dir);
-		if (IN_BOUNDS(dest,i))
+		if (OUT_OF_BOUNDS(dest,i))
 			continue;
 		// If they are not the adjacent creature's friend and fail a flee check
 		if (zone[dest].c&&!char_in_string(zone[i].c->symbol,zone[dest].c->friends)
 				&&will_flee(zone[i].c,zone[dest].c)) {
 			dir=(5-(j-5))+'0'; // Reverse direction
 			dest=i+dir_offset(dir);
-			if (zone[dest].c||zone[dest].wall) { // If the creature is blocked
+			if (OUT_OF_BOUNDS(dest,i)||zone[dest].c||zone[dest].wall) { // If the creature is blocked
 				dir=alternate_direction(zone,i,dir); // Try an alternate direction
 				dir=dir?dir:char_dir; // If cornered, fight back
 			}
@@ -477,8 +478,9 @@ char decide_move_direction(tile_t *zone,int i)
 			continue;
 		int char_dir=j+'0';
 		int dest=i+dir_offset(char_dir);
-		if (IN_BOUNDS(dest,i))
-			continue; // If an adjacent creature is their enemy
+		if (OUT_OF_BOUNDS(dest,i))
+			continue;
+		// If an adjacent creature is their enemy
 		if (zone[dest].c&&char_in_string(zone[dest].c->symbol,zone[i].c->enemies)) {
 			dir=j+'0'; // Go that direction
 			return dir;
@@ -835,7 +837,7 @@ int look_mode(tile_t *zone,int look_coord)
 		}
 		// Check if the requested movement is out of bounds
 		int dest=look_coord+dir_offset(input);
-		if (IN_BOUNDS(dest,look_coord))
+		if (OUT_OF_BOUNDS(dest,look_coord))
 			continue;
 		// Get rid of the old yellow X
 		draw_pos(zone,look_coord);
@@ -945,7 +947,7 @@ void cast_spell(tile_t *zone,int caster_coord,spell_t *spell)
 			break;
 	}
 	tile_t *target=&zone[target_coord];
-	if (!target)
+	if (target<0)
 		return;
 	int effect=1+rand()%(spell->cost/(11-caster->wis));
 	switch (spell->effect) {
@@ -956,6 +958,11 @@ void cast_spell(tile_t *zone,int caster_coord,spell_t *spell)
 			break;
 		case DAMAGE:
 			target->c->hp-=effect;
+			if (target->c->hp<0) {
+				target->corpse=target->c;
+				target->c=NULL;
+				draw_pos(zone,target_coord);
+			}
 			break;
 		case RESURRECT:
 			if (target->c)
@@ -965,10 +972,6 @@ void cast_spell(tile_t *zone,int caster_coord,spell_t *spell)
 			target->c->hp=effect;
 			if (target->c->hp>target->c->max_hp)
 				target->c->hp=target->c->max_hp;
-			/*
-			target->c->friends=realloc(target->c->friends,strlen(target->c->friends)+1);
-			target->c->friends[strlen(target->c->friends)]='@';
-			*/
 			draw_pos(zone,target_coord);
 	}
 	NEXT_LINE();
