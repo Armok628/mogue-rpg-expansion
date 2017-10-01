@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <math.h>
 #include "display.h"
 #include "rpg.h"
 #define NEW(x) malloc(sizeof(x))
@@ -73,9 +74,11 @@ void create_field(tile_t *field);
 void create_dungeon(tile_t *dungeon);
 int dist_to_wall(tile_t *zone,int pos,char dir);
 bool make_path(tile_t *zone,int pos);
+bool visible(tile_t *zone,int c1,int c2);
 int look_mode(tile_t *zone,int look_coord);
 spell_t *pick_spell(creature_t *c);
 void cast_spell(tile_t *zone,int caster_coord,spell_t *spell);
+void hide_invisible_tiles(tile_t *zone,int coord);
 // Global definitions
 static char
     	*grass_colors[2]={TERM_COLORS_40M[GREEN],TERM_COLORS_40M[LGREEN]},
@@ -128,6 +131,9 @@ int main(int argc,char **argv)
 			break;
 		if (input=='?') {
 			look_mode(c_z,p_c);
+		} else if (input=='H') {
+			hide_invisible_tiles(c_z,p_c);
+			continue;
 		} else if (input=='>'&&c_z[p_c].bg=='>'&&c_z[p_c].c==player) {
 			//fprintf(debug_log),"Entering dungeon!\n");
 			c_z[p_c].c=NULL;
@@ -694,13 +700,6 @@ void create_field(tile_t *field)
 	if (!typelist) {
 		typelist=read_type_list("index");
 		//add_type(random_type(),typelist); // Get some wildcards
-		/*
-		// Print out the creature types
-		clear_screen();
-		move_cursor(0,0);
-		print_type_list(typelist);
-		sleep(1);
-		*/
 	}
 	// Figure out how many creature types can spawn in this zone
 	for (type_t *t=typelist;t;t=t->next)
@@ -821,8 +820,26 @@ bool make_path(tile_t *zone,int pos)
 	//fprintf(debug_log),"Finished making a path.\n");
 	return true;
 }
+bool visible(tile_t *zone,int c1,int c2)
+{
+	static int debug=0;
+	debug++;
+	int p[2]={c1%WIDTH,c1/WIDTH};
+	int q[2]={c2%WIDTH,c2/WIDTH};
+	int vec[2]={q[0]-p[0],q[1]-p[1]};
+	float magn=sqrt(pow(vec[0],2)+pow(vec[1],2));
+	float unitv[2]={vec[0]/magn,vec[1]/magn};
+	for (float x=p[0],y=p[1];round(x)!=q[0]||round(y)!=q[1];x+=unitv[0],y+=unitv[1]) {
+		int coord=round(x)+round(y)*WIDTH;
+		if (zone[coord].wall)
+			return false;
+	}
+	return true;
+}
 int look_mode(tile_t *zone,int look_coord)
 {
+	int start=look_coord;
+	bool vis;
 	move_cursor(0,HEIGHT);
 	clear_line();
 	printf("Inspecting tile...");
@@ -839,12 +856,13 @@ int look_mode(tile_t *zone,int look_coord)
 		int dest=look_coord+dir_offset(input);
 		if (OUT_OF_BOUNDS(dest,look_coord))
 			continue;
-		// Get rid of the old yellow X
+		// Get rid of the old X
 		draw_pos(zone,look_coord);
 		// Update the look cursor's position and draw it
 		look_coord=dest;
+		vis=visible(zone,start,look_coord);
 		move_cursor(look_coord%WIDTH,look_coord/WIDTH);
-		printf("%sX%s",TERM_COLORS_40M[7],RESET_COLOR);
+		printf("%sX%s",TERM_COLORS_40M[vis?7:3],RESET_COLOR);
 		move_cursor(0,HEIGHT+1);
 		// Draw whatever is at the position under the X
 		if (zone[look_coord].c) {
@@ -869,13 +887,13 @@ int look_mode(tile_t *zone,int look_coord)
 		clear_line();
 	}
 	if (input=='\n')
-		return look_coord;
+		return (vis?1:-1)*look_coord;
 	return -1;
 }
-spell_t touch={.name="Deathly Touch",.cost=100,.target=TOUCH,.effect=DAMAGE};
-spell_t missile={.name="Missile",.cost=30,.target=TARGET,.effect=DAMAGE/**/,.next=&touch/**/};
-spell_t mend={.name="Mend",.cost=20,.target=SELF,.effect=HEAL/**/,.next=&missile/**/};
-spell_t raise={.name="Raise",.cost=100,.target=TARGET,.effect=RESURRECT/**/,.next=&mend/**/};
+spell_t touch={.name="Deathly Touch",.cost=200,.target=TOUCH,.effect=DAMAGE};
+spell_t missile={.name="Magic Missile",.cost=30,.target=TARGET,.effect=DAMAGE/**/,.next=&touch/**/};
+spell_t mend={.name="Mend Self",.cost=20,.target=SELF,.effect=HEAL/**/,.next=&missile/**/};
+spell_t raise={.name="Raise Dead",.cost=100,.target=TARGET,.effect=RESURRECT/**/,.next=&mend/**/};
 spell_t *pick_spell(creature_t *c)
 {
 	/**/
@@ -947,16 +965,24 @@ void cast_spell(tile_t *zone,int caster_coord,spell_t *spell)
 			break;
 	}
 	tile_t *target=&zone[target_coord];
-	if (target<0)
+	if (target_coord<0)
 		return;
 	int effect=1+rand()%(spell->cost/(11-caster->wis));
+	NEXT_LINE();
+	printf("%s%c%s casts %s, "
+			,TERM_COLORS_40M[caster->color]
+			,caster->symbol
+			,RESET_COLOR
+			,spell->name);
 	switch (spell->effect) {
 		case HEAL:
+			printf("restoring %i health.",effect);
 			target->c->hp+=effect;
 			if (target->c->hp>target->c->max_hp)
 				target->c->hp=target->c->max_hp;
 			break;
 		case DAMAGE:
+			printf("doing %i damage.",effect);
 			target->c->hp-=effect;
 			if (target->c->hp<0) {
 				target->corpse=target->c;
@@ -965,6 +991,7 @@ void cast_spell(tile_t *zone,int caster_coord,spell_t *spell)
 			}
 			break;
 		case RESURRECT:
+			printf("animating the corpse with %i health.",effect);
 			if (target->c)
 				break;
 			target->c=target->corpse;
@@ -974,11 +1001,11 @@ void cast_spell(tile_t *zone,int caster_coord,spell_t *spell)
 				target->c->hp=target->c->max_hp;
 			draw_pos(zone,target_coord);
 	}
-	NEXT_LINE();
-	printf("%s%c%s casts %s with an effect of %i\n" // To-do: Give specific wording
-			,TERM_COLORS_40M[caster->color]
-			,caster->symbol
-			,RESET_COLOR
-			,spell->name
-			,effect);
+}
+void hide_invisible_tiles(tile_t *zone,int coord)
+{
+	clear_screen();
+	for (int i=0;i<AREA;i++)
+		if (visible(zone,coord,i))
+			draw_pos(zone,i);
 }

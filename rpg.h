@@ -82,7 +82,7 @@ void print_spell(spell_t *spell)
 	}
 	switch (spell->target) {
 		case SELF:
-			printf("self\n");
+			printf("caster\n");
 			break;
 		case TOUCH:
 			printf("touched creature\n");
@@ -199,7 +199,7 @@ type_t *random_type()
 	type_t *type=malloc(sizeof(type_t));
 	type->symbol=(char)RAND_IN_RANGE(33,126);
 	type->color=RAND_IN_RANGE(2,16);
-	type->name=random_word(RAND_IN_RANGE(2,5));
+	type->name=random_word(RAND_IN_RANGE(2,4));
 	type->name[0]-=32;
 	int i1=0,i2=0;
 	i1=D(100); i2=D(100);
