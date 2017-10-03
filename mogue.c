@@ -40,6 +40,11 @@ static type_t scepter_type={.name="Scepter",.symbol='I',.color=10
 	,.hp={0,0},.res={0,0},.agi={0,0},.wis={0,0},.str={0,0}
 	,.friends=".",.enemies=".",.surface='F',.dimension='D'};
 static type_t *scepter=&scepter_type;
+// Spell definitions (possibly temporary)
+spell_t missile={.name="Magic Missile",.cost=30,.target=TARGET,.effect=DAMAGE};
+spell_t mend={.name="Mend Self",.cost=20,.target=SELF,.effect=HEAL/**/,.next=&missile/**/};
+spell_t touch={.name="Deathly Touch",.cost=200,.target=TOUCH,.effect=DAMAGE/**/,.next=&mend/**/};
+spell_t raise={.name="Raise Dead",.cost=100,.target=TARGET,.effect=RESURRECT/**/,.next=&touch/**/};
 // Function prototypes
 void draw_tile(tile_t *tile);
 void draw_pos(tile_t *zone,int pos);
@@ -76,8 +81,8 @@ int dist_to_wall(tile_t *zone,int pos,char dir);
 bool make_path(tile_t *zone,int pos);
 bool visible(tile_t *zone,int c1,int c2);
 int look_mode(tile_t *zone,int look_coord);
-spell_t *pick_spell(creature_t *c);
-void cast_spell(tile_t *zone,int caster_coord,spell_t *spell);
+void player_cast_spell(tile_t *c_z,int p_c);
+void cast_spell(tile_t *zone,int caster_coord,spell_t *spell,int target_coord);
 void hide_invisible_tiles(tile_t *zone,int coord);
 // Global definitions
 static char
@@ -494,6 +499,53 @@ char decide_move_direction(tile_t *zone,int i)
 	}
 	return '1'+rand()%9; // If there isn't a good direction to pick, move randomly
 }
+bool creature_cast_spell(tile_t *zone,int coord)
+{
+	// Pick a spell
+	int spell_count=0;
+	spell_t *spell=zone[coord].c->spell;
+	for (spell_t *s=spell;s;s=s->next)
+		spell_count++;
+	int chosen_spell=rand()%spell_count;
+	for (int i=0;i<chosen_spell;i++)
+		spell=spell->next;
+	// Pick a target
+	int target,targets[AREA/48],index=0;
+	switch (spell->target) {
+		case SELF:
+			target=coord;
+			break;
+		case TARGET:
+			for (int i=0;i<AREA;i++)
+				if (i!=coord&&(spell->target==RESURRECT?zone[i].corpse:zone[i].c)
+						&&visible(zone,coord,i)) {
+					targets[index]=i;
+					index++;
+				}
+			break;
+		case TOUCH:
+			for (int i=1;i<=9;i++) {
+				int os=dir_offset(i+'0');
+				if (os!=0&&(spell->target==RESURRECT?zone[coord+os].corpse
+							:zone[coord+os].c)) {
+					targets[index]=i;
+					index++;
+				}
+			}
+	}
+	if (spell->target!=SELF) {
+		// If there is no target
+		if (!index)
+			return false; // Fail
+		target=targets[rand()%index];
+		// If the target is inappropriate
+		if ((char_in_string(zone[target].c->symbol,zone[coord].c->enemies)&&spell->effect!=DAMAGE)
+				||(char_in_string(zone[target].c->symbol,zone[coord].c->friends)&&spell->effect==DAMAGE))
+			return false; // Fail
+	}
+	cast_spell(zone,coord,spell,target);
+	return true;
+}
 void update(tile_t *zone)
 {
 	// Make a matrix of the creatures
@@ -509,6 +561,11 @@ void update(tile_t *zone)
 			// Give it a small chance to regenerate 1 HP
 			if (zone[i].c->hp<zone[i].c->max_hp)
 				zone[i].c->hp+=0==rand()%10;
+			// Decide whether to cast a spell
+			if (zone[i].c->spell&&rand()%128<zone[i].c->wis) {
+				if (creature_cast_spell(zone,i))
+					continue;
+			}
 			// Figure out what direction it should go in
 			char dir=decide_move_direction(zone,i);
 			// Perform extra actions based on collision
@@ -559,10 +616,7 @@ char move_player(tile_t *zone,char dir,int *pc)
 	if (player->hp<0)
 		return '\0';
 	if (dir=='m') { // If the player is casting something
-		spell_t *spell=pick_spell(player);
-		if (spell)
-			cast_spell(zone,*pc,spell);
-		return '\0';
+		player_cast_spell(zone,*pc);
 	}
 	char result='\0';
 	if (zone[*pc].c!=player) // If the player coordinate has the wrong address
@@ -711,8 +765,15 @@ void create_field(tile_t *field)
 	// Spawn them appropriately
 	for (type_t *t=typelist;t;t=t->next) {
 		if (t->dimension!='D') {
-			for (int j=0;j<pops[i];j++)
-				find_surface(field,t->surface)->c=make_creature(t);
+			for (int j=0;j<pops[i];j++) {
+				tile_t *tile=find_surface(field,t->surface);
+				tile->c=make_creature(t);
+				/* Temporary. To-do: Determine which creatures get what spells */
+				if (tile->c->wis>3)
+					tile->c->spell=&mend;
+				/**/
+
+			}
 			i++;
 		}
 	}
@@ -890,13 +951,10 @@ int look_mode(tile_t *zone,int look_coord)
 		return (vis?1:-1)*look_coord;
 	return -1;
 }
-spell_t touch={.name="Deathly Touch",.cost=200,.target=TOUCH,.effect=DAMAGE};
-spell_t missile={.name="Magic Missile",.cost=30,.target=TARGET,.effect=DAMAGE/**/,.next=&touch/**/};
-spell_t mend={.name="Mend Self",.cost=20,.target=SELF,.effect=HEAL/**/,.next=&missile/**/};
-spell_t raise={.name="Raise Dead",.cost=100,.target=TARGET,.effect=RESURRECT/**/,.next=&mend/**/};
-spell_t *pick_spell(creature_t *c)
+void player_cast_spell(tile_t *c_z,int p_c)
 {
-	/**/
+	creature_t *c=player;
+	/* Temporary */
 	if (!player->spell)
 		player->spell=&raise;
 	/**/
@@ -936,44 +994,58 @@ spell_t *pick_spell(creature_t *c)
 		clear_line();
 	}
 	lines_printed=1;
-	if (input=='q')
-		return NULL;
-	return spell;
+	int target_coord;
+	switch (spell->target) {
+		case SELF:
+			target_coord=p_c;
+			break;
+		case TOUCH:
+			target_coord=p_c+dir_offset(fgetc(stdin));
+			break;
+		case TARGET:
+			target_coord=look_mode(c_z,p_c);
+	}
+	cast_spell(c_z,p_c,spell,target_coord);
 }
-void cast_spell(tile_t *zone,int caster_coord,spell_t *spell)
+void cast_spell(tile_t *zone,int caster_coord,spell_t *spell,int target_coord)
 {
 	creature_t *caster=zone[caster_coord].c;
-	if (rand()%10<1+(spell->cost/10)-caster->wis) {
+	if (rand()%10<(spell->cost/10)-caster->wis&&rand()%10) {
 		NEXT_LINE();
-		printf("%s%c%s tried to cast %s but failed!"
+		printf("%s%c%s tries to cast %s but fails!"
 				,TERM_COLORS_40M[caster->color]
 				,caster->symbol
 				,RESET_COLOR
 				,spell->name);
 		return;
 	}
-	int target_coord;
-	switch (spell->target) {
-		case SELF:
-			target_coord=caster_coord;
-			break;
-		case TOUCH:
-			target_coord=caster_coord+dir_offset(fgetc(stdin));
-			break;
-		case TARGET:
-			target_coord=look_mode(zone,caster_coord);
-			break;
-	}
 	tile_t *target=&zone[target_coord];
 	if (target_coord<0)
 		return;
 	int effect=1+rand()%(spell->cost/(11-caster->wis));
 	NEXT_LINE();
-	printf("%s%c%s casts %s, "
+	printf("%s%c%s casts %s "
 			,TERM_COLORS_40M[caster->color]
 			,caster->symbol
 			,RESET_COLOR
 			,spell->name);
+	switch (spell->target) {
+		case SELF:
+			printf("on itself, ");
+			break;
+		default:
+			if (spell->effect!=RESURRECT)
+				printf("on %s%c%s, "
+						,TERM_COLORS_40M[target->c->color]
+						,target->c->symbol
+						,RESET_COLOR);
+			else
+				printf("on %s%c%s, "
+						,TERM_COLORS_41M[target->corpse->color]
+						,target->corpse->symbol
+						,RESET_COLOR);
+			break;
+	}
 	switch (spell->effect) {
 		case HEAL:
 			printf("restoring %i health.",effect);
