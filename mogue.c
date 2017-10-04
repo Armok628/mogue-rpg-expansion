@@ -121,6 +121,7 @@ int main(int argc,char **argv)
 	spawn_player(c_z,&p_c);
 	// Draw board
 	clear_screen();
+	/**/move_cursor(WIDTH,0); printf("%u",seed);/**/
 	draw_board(c_z);
 	move_cursor(0,HEIGHT);
 	print_creature(player);
@@ -769,8 +770,7 @@ void create_field(tile_t *field)
 				tile_t *tile=find_surface(field,t->surface);
 				tile->c=make_creature(t);
 				/* Temporary. To-do: Determine which creatures get what spells */
-				if (tile->c->wis>3)
-					tile->c->spell=&mend;
+				tile->c->spell=tile->c->wis>3?&mend:NULL;
 				/**/
 
 			}
