@@ -93,18 +93,15 @@ static char
 	*grass_chars="\"\',.`";
 static type_t *typelist=NULL;
 static int lines_printed=1;
-static FILE *debug_log;
 // Main function
 int main(int argc,char **argv)
 {
-	// Open the debug log
-	//debug_log=fopen("debug.log","w+");
 	// Seed the RNG
 	unsigned int seed=time(NULL);
 	if (argc>1) {
 		sscanf(argv[1],"%u",&seed);
 	}
-	//fprintf(debug_log),"Seed: %u\n",seed);
+	fprintf(stderr,"Seed: %u\n",seed);
 	srand(seed);
 	// Set terminal attributes
 	set_terminal_canon(false);
@@ -131,7 +128,7 @@ int main(int argc,char **argv)
 		input=fgetc(stdin);
 		if (input==27&&fgetc(stdin)==91)
 			input=fgetc(stdin);
-		////fprintf(debug_log),"Input registered: \'%c\'\n",input);
+		//fprintf(stderr,"Input registered: \'%c\'\n",input);
 		if (input=='q')
 			break;
 		if (input=='?') {
@@ -140,7 +137,7 @@ int main(int argc,char **argv)
 			hide_invisible_tiles(c_z,p_c);
 			continue;
 		} else if (input=='>'&&c_z[p_c].bg=='>'&&c_z[p_c].c==player) {
-			//fprintf(debug_log),"Entering dungeon!\n");
+			fprintf(stderr,"Entering dungeon!\n");
 			c_z[p_c].c=NULL;
 			create_dungeon(dungeon);
 			c_z=dungeon;
@@ -149,7 +146,7 @@ int main(int argc,char **argv)
 			draw_board(c_z);
 			continue;
 		} else if (input=='<'&&c_z[p_c].bg=='<'&&c_z[p_c].c==player) {
-			//fprintf(debug_log),"Exiting dungeon!\n");
+			fprintf(stderr,"Exiting dungeon!\n");
 			c_z[p_c].c=NULL;
 			c_z=field;
 			for (p_c=0;c_z[p_c].bg!='>';p_c++);
@@ -165,7 +162,7 @@ int main(int argc,char **argv)
 			update(c_z);
 			continue;
 		} else if (input=='z'&&has_scepter) {
-			//fprintf(debug_log),"Summoning zombie!\n");
+			fprintf(stderr,"Summoning zombie!\n");
 			int target=p_c+dir_offset(fgetc(stdin));
 			try_summon(&c_z[target],zombie);
 			draw_pos(c_z,target);
@@ -173,7 +170,7 @@ int main(int argc,char **argv)
 			continue;
 		} else if (input=='o'&&has_scepter) {
 			input=fgetc(stdin);
-			//fprintf(debug_log),"Opening portal!\n");
+			fprintf(stderr,"Opening portal!\n");
 			int target=p_c+2*dir_offset(input);
 			if (!c_z[p_c+dir_offset(input)].wall
 					&&!c_z[p_c+dir_offset(input)].c
@@ -186,7 +183,7 @@ int main(int argc,char **argv)
 			continue;
 		} else if (input=='R'&&has_scepter
 				&&player->hp<0) {
-			//fprintf(debug_log),"Resurrecting player!\n");
+			fprintf(stderr,"Resurrecting player!\n");
 			c_z[p_c].c=player;
 			c_z[p_c].corpse=NULL;
 			has_scepter=false;
@@ -205,14 +202,14 @@ int main(int argc,char **argv)
 				draw_pos(c_z,p_c);
 				break;
 			case 'O':
-				//fprintf(debug_log),"Entering portal!\n");
+				fprintf(stderr,"Entering portal!\n");
 				create_field(field);
-				//fprintf(debug_log),"Spawning player...\n");
+				fprintf(stderr,"Spawning player...\n");
 				spawn_player(field,&p_c);
 				field[p_c].c=player;
 				draw_board(field);
 				c_z=field;
-				//fprintf(debug_log),"Done!\n");
+				fprintf(stderr,"Done!\n");
 				continue;
 
 		}
@@ -338,7 +335,7 @@ char move_tile(tile_t *zone,int pos,char dir)
 			// To-do: Abstract this
 			int damage=attack_damage(from->c,to->c);
 			if (damage<0) {
-				//fprintf(debug_log),"%s attacked %s but missed",from->c->name,to->c->name);
+				fprintf(stderr,"%s attacked %s but missed",from->c->name,to->c->name);
 				NEXT_LINE();
 				printf("%s%c%s attacked %s%c%s but missed"
 						,TERM_COLORS_40M[from->c->color]
@@ -348,7 +345,7 @@ char move_tile(tile_t *zone,int pos,char dir)
 						,to->c->symbol
 						,RESET_COLOR);
 			} else if (damage==0) {
-				//fprintf(debug_log),"%s attacked %s but was too weak to cause damage",from->c->name,to->c->name);
+				fprintf(stderr,"%s attacked %s but was too weak to cause damage",from->c->name,to->c->name);
 				NEXT_LINE();
 				printf("%s%c%s attacked %s%c%s but was too weak to cause damage"
 						,TERM_COLORS_40M[from->c->color]
@@ -358,7 +355,7 @@ char move_tile(tile_t *zone,int pos,char dir)
 						,to->c->symbol
 						,RESET_COLOR);
 			} else {
-				//fprintf(debug_log),"%s attacked %s for %i damage",from->c->name,to->c->name,damage);
+				fprintf(stderr,"%s attacked %s for %i damage",from->c->name,to->c->name,damage);
 				NEXT_LINE();
 				printf("%s%c%s attacked %s%c%s for %i damage"
 						,TERM_COLORS_40M[from->c->color]
@@ -371,12 +368,12 @@ char move_tile(tile_t *zone,int pos,char dir)
 				to->c->hp-=damage;
 			}
 			if (to->c->hp>0) {
-				//fprintf(debug_log),". It has %i health left.\n",to->c->hp);
+				fprintf(stderr,". It has %i health left.\n",to->c->hp);
 				printf(". It has %i health left.\n",to->c->hp);
 				return '\0';
 			}
 			else { // To-do: Special cases for entering portals or collecting scepters
-				//fprintf(debug_log),", killing it!\n");
+				fprintf(stderr,", killing it!\n");
 				printf(", killing it!\n");
 			}
 		}
@@ -392,7 +389,7 @@ char move_tile(tile_t *zone,int pos,char dir)
 		// If there was a creature there and it is dead now
 		if (to->c&&to->c->hp<=0) {
 			if (to->c->symbol=='O') { // If it was a portal
-				//fprintf(debug_log),"%c entered a portal!\n",from->c->symbol);
+				fprintf(stderr,"%c entered a portal!\n",from->c->symbol);
 				if (from->c!=player) // If the player didn't enter it
 					free(from->c);
 				from->c=NULL;
@@ -402,7 +399,7 @@ char move_tile(tile_t *zone,int pos,char dir)
 				draw_pos(zone,dest);
 				return 'O';
 			} else if (to->c->symbol=='I') {
-				//fprintf(debug_log),"%c picked up a scepter!\n",from->c->symbol);
+				fprintf(stderr,"%c picked up a scepter!\n",from->c->symbol);
 				free(to->c);
 				to->c=from->c;
 				from->c=NULL;
@@ -411,7 +408,7 @@ char move_tile(tile_t *zone,int pos,char dir)
 				return 'I';
 			}
 			killed=to->c->symbol; // Remember what was killed
-			//fprintf(debug_log),"%c killed a %c at [%i]\n",from->c->symbol,to->c->symbol,dest);
+			fprintf(stderr,"%c killed a %c at [%i]\n",from->c->symbol,to->c->symbol,dest);
 			// If it's not on stairs, place a corpse
 			if (!char_in_string(to->bg,"<>")) {
 				free(to->corpse);
@@ -736,7 +733,7 @@ tile_t *find_surface(tile_t *zone,char surface)
 void create_field(tile_t *field)
 {
 	int typelist_length=0;
-	//fprintf(debug_log),"Growing grass...\n");
+	fprintf(stderr,"Growing grass...\n");
 	for (int i=0;i<AREA;i++) {
 		set_tile(&field[i],'\0',NULL,grass_chars[rand()%5]
 				,grass_colors[rand()%2]);
@@ -745,12 +742,12 @@ void create_field(tile_t *field)
 		field[i].c=NULL;// (and removing old creatures)
 		field[i].corpse=NULL;
 	}
-	//fprintf(debug_log),"Building buildings...\n");
+	fprintf(stderr,"Building buildings...\n");
 	for (int i=0;i<AREA/96;i++)
 		make_random_building(field);
-	//fprintf(debug_log),"Culling walls...\n");
+	fprintf(stderr,"Culling walls...\n");
 	cull_walls(field);
-	//fprintf(debug_log),"Summoning creatures...\n");
+	fprintf(stderr,"Summoning creatures...\n");
 	if (!typelist) {
 		typelist=read_type_list("index");
 		//add_type(random_type(),typelist); // Get some wildcards
@@ -778,16 +775,16 @@ void create_field(tile_t *field)
 	}
 	// Summon a random beast
 	random_empty_tile(field)->c=random_creature();
-	//fprintf(debug_log),"Digging stairwell...\n");
+	fprintf(stderr,"Digging stairwell...\n");
 	set_bg(random_floor(field),'>',TERM_COLORS_40M[BROWN]);
-	//fprintf(debug_log),"Opening portal...");
+	fprintf(stderr,"Opening portal...");
 	random_grass(field)->c=make_creature(portal);
-	//fprintf(debug_log),"Done!\n");
+	fprintf(stderr,"Done!\n");
 }
 void create_dungeon(tile_t *dungeon)
 {
 	int m=AREA/96,b=AREA/96,typelist_length=0;
-	//fprintf(debug_log),"Placing rocks...\n");
+	fprintf(stderr,"Placing rocks...\n");
 	for (int i=0;i<AREA;i++) {
 		set_tile(&dungeon[i],'%',rock_colors[rand()%2],'\0',NULL);
 		free(dungeon[i].c);
@@ -795,12 +792,12 @@ void create_dungeon(tile_t *dungeon)
 		dungeon[i].c=NULL; // (and removing old creatures)
 		dungeon[i].corpse=NULL;
 	}
-	//fprintf(debug_log),"Carving rooms...\n");
+	fprintf(stderr,"Carving rooms...\n");
 	for (int i=0;i<b;i++)
 		make_random_building(dungeon);
-	//fprintf(debug_log),"Culling walls...\n");
+	fprintf(stderr,"Culling walls...\n");
 	cull_walls(dungeon);
-	//fprintf(debug_log),"Spawning creatures...\n");
+	fprintf(stderr,"Spawning creatures...\n");
 	for (type_t *t=typelist;t;t=t->next)
 		if (t->dimension!='F')
 			typelist_length++;
@@ -813,16 +810,16 @@ void create_dungeon(tile_t *dungeon)
 			i++;
 		}
 	}
-	//fprintf(debug_log),"Crafting scepter...\n");
+	fprintf(stderr,"Crafting scepter...\n");
 	random_empty_tile(dungeon)->c=make_creature(scepter);
-	//fprintf(debug_log),"Digging stairwell...\n");
+	fprintf(stderr,"Digging stairwell...\n");
 	set_bg(random_floor(dungeon),'<',TERM_COLORS_40M[BROWN]);
 	if (b>1) {
-		//fprintf(debug_log),"Mapping tunnels...\n");
+		fprintf(stderr,"Mapping tunnels...\n");
 		for (int i=0;i<AREA/240;i++)
 			while (!make_path(dungeon,rand()%AREA));
 	}
-	//fprintf(debug_log),"Done!\n");
+	fprintf(stderr,"Done!\n");
 }
 int dist_to_wall(tile_t *zone,int pos,char dir)
 {
@@ -840,13 +837,13 @@ int dist_to_wall(tile_t *zone,int pos,char dir)
 }
 bool make_path(tile_t *zone,int pos)
 {
-	//fprintf(debug_log),"Trying to make a path at %i.\n",pos);
+	fprintf(stderr,"Trying to make a path at %i.\n",pos);
 	if (!char_in_string(zone[pos].bg,grass_chars)&&zone[pos].bg) {
-		//fprintf(debug_log),"Invalid path origin.\n");
+		fprintf(stderr,"Invalid path origin.\n");
 		return false;
 	}
-	//fprintf(debug_log),"Start position looks okay...\n");
-	//fprintf(debug_log),"Trying to determining path direction...\n");
+	fprintf(stderr,"Start position looks okay...\n");
+	fprintf(stderr,"Trying to determining path direction...\n");
 	int dist[2]={AREA,AREA};
 	char dirs[2]={'\0','\0'};
 	for (int i=1;i<=4;i++) {
@@ -865,10 +862,10 @@ bool make_path(tile_t *zone,int pos)
 		}
 	}
 	if (dist[1]==AREA||!dirs[1]) {
-		//fprintf(debug_log),"No valid path direction. Stopping.\n");
+		fprintf(stderr,"No valid path direction. Stopping.\n");
 		return false;
 	}
-	//fprintf(debug_log),"Placing path tiles...\n");
+	fprintf(stderr,"Placing path tiles...\n");
 	for (int i=0;i<2;i++) {
 		int d=pos+dist[i]*dir_offset(dirs[i]);
 		for (int j=0;j<dist[i];j++) {
@@ -877,7 +874,7 @@ bool make_path(tile_t *zone,int pos)
 		}
 		set_door(&zone[d]);
 	}
-	//fprintf(debug_log),"Finished making a path.\n");
+	fprintf(stderr,"Finished making a path.\n");
 	return true;
 }
 bool visible(tile_t *zone,int c1,int c2)
