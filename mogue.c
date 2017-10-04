@@ -121,7 +121,6 @@ int main(int argc,char **argv)
 	spawn_player(c_z,&p_c);
 	// Draw board
 	clear_screen();
-	/**/move_cursor(WIDTH,0); printf("%u",seed);/**/
 	draw_board(c_z);
 	move_cursor(0,HEIGHT);
 	print_creature(player);
