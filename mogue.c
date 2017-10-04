@@ -43,7 +43,7 @@ static type_t *scepter=&scepter_type;
 // Spell definitions (possibly temporary)
 spell_t missile={.name="Magic Missile",.cost=30,.target=TARGET,.effect=DAMAGE};
 spell_t mend={.name="Mend Self",.cost=20,.target=SELF,.effect=HEAL/**/,.next=&missile/**/};
-spell_t touch={.name="Deathly Touch",.cost=200,.target=TOUCH,.effect=DAMAGE/**/,.next=&mend/**/};
+spell_t touch={.name="Deathly Touch",.cost=100,.target=TOUCH,.effect=DAMAGE/**/,.next=&mend/**/};
 spell_t raise={.name="Raise Dead",.cost=100,.target=TARGET,.effect=RESURRECT/**/,.next=&touch/**/};
 // Function prototypes
 void draw_tile(tile_t *tile);
@@ -1009,6 +1009,7 @@ void player_cast_spell(tile_t *c_z,int p_c)
 void cast_spell(tile_t *zone,int caster_coord,spell_t *spell,int target_coord)
 {
 	creature_t *caster=zone[caster_coord].c;
+	// Roll for fail to cast
 	if (rand()%10<(spell->cost/10)-caster->wis&&rand()%10) {
 		NEXT_LINE();
 		printf("%s%c%s tries to cast %s but fails!"
@@ -1019,10 +1020,13 @@ void cast_spell(tile_t *zone,int caster_coord,spell_t *spell,int target_coord)
 		return;
 	}
 	tile_t *target=&zone[target_coord];
-	if (target_coord<0)
-		return;
+	// If the target is invalid
+	if (target_coord<0||!(spell->effect!=RESURRECT?target->c:target->corpse)
+			||(spell->target!=SELF&&caster_coord==target_coord))
+		return; // Cancel
 	int effect=1+rand()%(spell->cost/(11-caster->wis));
 	NEXT_LINE();
+	// Print caster and spell name
 	printf("%s%c%s casts %s "
 			,TERM_COLORS_40M[caster->color]
 			,caster->symbol
@@ -1045,6 +1049,7 @@ void cast_spell(tile_t *zone,int caster_coord,spell_t *spell,int target_coord)
 						,RESET_COLOR);
 			break;
 	}
+	// Enact and print resulting effect
 	switch (spell->effect) {
 		case HEAL:
 			printf("restoring %i health.",effect);
