@@ -1053,13 +1053,15 @@ void cast_spell(tile_t *zone,int caster_coord,spell_t *spell,int target_coord)
 				target->c->hp=target->c->max_hp;
 			break;
 		case DAMAGE:
-			printf("doing %i damage.",effect);
+			printf("doing %i damage",effect);
 			target->c->hp-=effect;
 			if (target->c->hp<0) {
+				printf(" and killing it!");
 				target->corpse=target->c;
 				target->c=NULL;
 				draw_pos(zone,target_coord);
-			}
+			} else
+				printf(".");
 			break;
 		case RESURRECT:
 			printf("animating the corpse with %i health.",effect);
