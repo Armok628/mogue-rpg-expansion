@@ -109,8 +109,8 @@ int main(int argc,char **argv)
 	set_terminal_canon(false);
 	set_cursor_visibility(0);
 	// Variable definitions
-	tile_t *field=malloc(AREA*sizeof(tile_t))
-		,*dungeon=malloc(AREA*sizeof(tile_t))
+	tile_t *field=calloc(AREA,sizeof(tile_t))
+		,*dungeon=calloc(AREA,sizeof(tile_t))
 		,*c_z;
 	int p_c;
 	// Initialize field
@@ -209,6 +209,7 @@ int main(int argc,char **argv)
 		}
 		update(c_z);
 	}
+	c_z[p_c].c=NULL;
 	free_creatures(field);
 	free(field);
 	free_creatures(dungeon);
