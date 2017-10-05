@@ -122,6 +122,9 @@ type_t *read_type (char *filename)
 		return type;
 	}
 	printf("Error scanning \'%s\'\nScanned stats: %i\n",filename,scanned);
+	free(type);
+	free(friends);
+	free(enemies);
 	fclose(file);
 	return NULL;
 }
@@ -239,6 +242,7 @@ type_t *read_type_list(const char *filename)
 		list=add_type(read_type(name),list);
 	}
 	free(name);
+	fclose(creatures);
 	return list;
 }
 /*

@@ -84,6 +84,9 @@ int look_mode(tile_t *zone,int look_coord);
 void player_cast_spell(tile_t *c_z,int p_c);
 void cast_spell(tile_t *zone,int caster_coord,spell_t *spell,int target_coord);
 void hide_invisible_tiles(tile_t *zone,int coord);
+void free_creature(creature_t *c);
+void free_creatures(tile_t *zone);
+void free_typelist(type_t *type);
 // Global definitions
 static char
     	*grass_colors[2]={TERM_COLORS_40M[GREEN],TERM_COLORS_40M[LGREEN]},
@@ -195,6 +198,7 @@ int main(int argc,char **argv)
 				draw_pos(c_z,p_c);
 				break;
 			case 'O':
+				free_creatures(field);
 				create_field(field);
 				spawn_player(field,&p_c);
 				field[p_c].c=player;
@@ -205,6 +209,11 @@ int main(int argc,char **argv)
 		}
 		update(c_z);
 	}
+	free_creatures(field);
+	free(field);
+	free_creatures(dungeon);
+	free(dungeon);
+	free_typelist(typelist);
 	// Clean up terminal
 	set_terminal_canon(true);
 	printf("%s",RESET_COLOR);
@@ -279,21 +288,21 @@ tile_t *random_tile(tile_t *zone)
 tile_t *random_empty_tile(tile_t *zone)
 {
 	tile_t *tile=random_tile(zone);
-	if (!tile->wall)
+	if (!tile->wall&&!tile->c)
 		return tile;
 	return random_empty_tile(zone);
 }
 tile_t *random_grass(tile_t *zone)
 {
 	tile_t *tile=random_empty_tile(zone);
-	if (char_in_string(tile->bg,grass_chars))
+	if (char_in_string(tile->bg,grass_chars)&&!tile->c)
 		return tile;
 	return (random_grass(zone));
 }
 tile_t *random_floor(tile_t *zone)
 {
 	tile_t *tile=random_empty_tile(zone);
-	if (tile->bg=='#')
+	if (tile->bg=='#'&&!tile->c)
 		return tile;
 	return (random_floor(zone));
 }
@@ -375,15 +384,15 @@ char move_tile(tile_t *zone,int pos,char dir)
 		if (to->c&&to->c->hp<=0) {
 			if (to->c->symbol=='O') { // If it was a portal
 				if (from->c!=player) // If the player didn't enter it
-					free(from->c);
+					free_creature(from->c);
 				from->c=NULL;
-				free(to->c);
+				free_creature(to->c);
 				to->c=NULL;
 				draw_pos(zone,pos);
 				draw_pos(zone,dest);
 				return 'O';
 			} else if (to->c->symbol=='I') {
-				free(to->c);
+				free_creature(to->c);
 				to->c=from->c;
 				from->c=NULL;
 				draw_pos(zone,pos);
@@ -391,19 +400,21 @@ char move_tile(tile_t *zone,int pos,char dir)
 				return 'I';
 			}
 			killed=to->c->symbol; // Remember what was killed
+			if (to->corpse)
+				free(to->corpse);
 			// If it's not on stairs, place a corpse
 			if (!char_in_string(to->bg,"<>")) {
-				free(to->corpse);
 				to->corpse=to->c;
-				to->c=NULL;
-				//set_bg(to,to->c->symbol,TERM_COLORS_41M[to->c->color]);
 			}
+			to->c=NULL;
 		} else if (to->c&&to->c->hp>0) {
 			return '\0';
 		}
 		// Move the creature
-		if ((to->c)&&to->c!=player)
-			free(to->c);
+		/*
+		if (to->c&&to->c!=player)
+			free_creature(to->c);
+		*/
 		to->c=from->c;
 		from->c=NULL;
 		// Redraw the changed positions
@@ -713,14 +724,11 @@ tile_t *find_surface(tile_t *zone,char surface)
 void create_field(tile_t *field)
 {
 	int typelist_length=0;
-	for (int i=0;i<AREA;i++) {
+	free_creatures(field);
+	// Set all tiles to grass
+	for (int i=0;i<AREA;i++)
 		set_tile(&field[i],'\0',NULL,grass_chars[rand()%5]
 				,grass_colors[rand()%2]);
-		free(field[i].c);
-		free(field[i].corpse);
-		field[i].c=NULL;// (and removing old creatures)
-		field[i].corpse=NULL;
-	}
 	for (int i=0;i<AREA/96;i++)
 		make_random_building(field);
 	cull_walls(field);
@@ -749,21 +757,19 @@ void create_field(tile_t *field)
 			i++;
 		}
 	}
+	free(pops);
 	// Summon a random beast
 	random_empty_tile(field)->c=random_creature();
+	// Place a staircase and portal
 	set_bg(random_floor(field),'>',TERM_COLORS_40M[BROWN]);
 	random_grass(field)->c=make_creature(portal);
 }
 void create_dungeon(tile_t *dungeon)
 {
 	int m=AREA/96,b=AREA/96,typelist_length=0;
-	for (int i=0;i<AREA;i++) {
+	free_creatures(dungeon);
+	for (int i=0;i<AREA;i++)
 		set_tile(&dungeon[i],'%',rock_colors[rand()%2],'\0',NULL);
-		free(dungeon[i].c);
-		free(dungeon[i].corpse);
-		dungeon[i].c=NULL; // (and removing old creatures)
-		dungeon[i].corpse=NULL;
-	}
 	for (int i=0;i<b;i++)
 		make_random_building(dungeon);
 	cull_walls(dungeon);
@@ -779,6 +785,7 @@ void create_dungeon(tile_t *dungeon)
 			i++;
 		}
 	}
+	free(pops);
 	random_empty_tile(dungeon)->c=make_creature(scepter);
 	set_bg(random_floor(dungeon),'<',TERM_COLORS_40M[BROWN]);
 	if (b>1) {
@@ -1041,4 +1048,32 @@ void hide_invisible_tiles(tile_t *zone,int coord)
 	for (int i=0;i<AREA;i++)
 		if (visible(zone,coord,i))
 			draw_pos(zone,i);
+}
+void free_creature(creature_t *c)
+{
+	if (!c)
+		return;
+	if (!c->type)
+		free(c->name);
+	free(c);
+}
+void free_creatures(tile_t *zone)
+{
+	for (int i=0;i<AREA;i++) {
+		free_creature(zone[i].c);
+		zone[i].c=NULL;
+		free_creature(zone[i].corpse);
+		zone[i].corpse=NULL;
+	}
+}
+void free_typelist(type_t *type)
+{
+	while (typelist) {
+		type_t *next=typelist->next;
+		free(typelist->name);
+		free(typelist->friends);
+		free(typelist->enemies);
+		free(typelist);
+		typelist=next;
+	}
 }
