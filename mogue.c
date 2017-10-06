@@ -76,6 +76,7 @@ void cull_walls(tile_t *zone);
 int *rand_fixed_sum(int n,int max);
 tile_t *find_surface(tile_t *zone,char surface);
 void create_field(tile_t *field);
+int dig_staircase(tile_t *zone,char dir);
 void create_dungeon(tile_t *dungeon);
 int dist_to_wall(tile_t *zone,int pos,char dir);
 bool make_path(tile_t *zone,int pos);
@@ -99,11 +100,13 @@ static int lines_printed=1;
 // Main function
 int main(int argc,char **argv)
 {
+	fprintf(stderr,"Compiled on %s at %s\n",__DATE__,__TIME__);
 	// Seed the RNG
 	unsigned int seed=time(NULL);
 	if (argc>1) {
 		sscanf(argv[1],"%u",&seed);
 	}
+	fprintf(stderr,"Seed: %u\n",seed);
 	srand(seed);
 	// Set terminal attributes
 	set_terminal_canon(false);
@@ -112,9 +115,10 @@ int main(int argc,char **argv)
 	tile_t *field=calloc(AREA,sizeof(tile_t))
 		,*dungeon=calloc(AREA,sizeof(tile_t))
 		,*c_z;
-	int p_c;
+	int p_c,fc_c;
 	// Initialize field
 	create_field(field);
+	fc_c=dig_staircase(field,'>');
 	c_z=field;
 	// Initialize player
 	spawn_player(c_z,&p_c);
@@ -141,14 +145,14 @@ int main(int argc,char **argv)
 			c_z[p_c].c=NULL;
 			create_dungeon(dungeon);
 			c_z=dungeon;
-			for (p_c=0;c_z[p_c].bg!='<';p_c++);
+			p_c=dig_staircase(dungeon,'<');
 			c_z[p_c].c=player;
 			draw_board(c_z);
 			continue;
 		} else if (input=='<'&&c_z[p_c].bg=='<'&&c_z[p_c].c==player) {
 			c_z[p_c].c=NULL;
 			c_z=field;
-			for (p_c=0;c_z[p_c].bg!='>';p_c++);
+			p_c=fc_c;
 			c_z[p_c].c=player;
 			draw_board(c_z);
 			continue;
@@ -200,6 +204,7 @@ int main(int argc,char **argv)
 			case 'O':
 				free_creatures(field);
 				create_field(field);
+				fc_c=dig_staircase(field,'>');
 				spawn_player(field,&p_c);
 				field[p_c].c=player;
 				draw_board(field);
@@ -209,7 +214,6 @@ int main(int argc,char **argv)
 		}
 		update(c_z);
 	}
-	c_z[p_c].c=NULL;
 	free_creatures(field);
 	free(field);
 	free_creatures(dungeon);
@@ -296,14 +300,14 @@ tile_t *random_empty_tile(tile_t *zone)
 tile_t *random_grass(tile_t *zone)
 {
 	tile_t *tile=random_empty_tile(zone);
-	if (char_in_string(tile->bg,grass_chars)&&!tile->c)
+	if (char_in_string(tile->bg,grass_chars))
 		return tile;
 	return (random_grass(zone));
 }
 tile_t *random_floor(tile_t *zone)
 {
 	tile_t *tile=random_empty_tile(zone);
-	if (tile->bg=='#'&&!tile->c)
+	if (tile->bg=='#')
 		return tile;
 	return (random_floor(zone));
 }
@@ -671,7 +675,7 @@ void cull_walls(tile_t *zone)
 	int walls_removed;
 	do {
 		walls_removed=0;
-		for (int i=0;i<AREA;i++)
+		for (int i=WIDTH+1;i<AREA-WIDTH-1;i++)
 			if (char_in_string(zone[i].wall,"%+")
 					&&((zone[i+1].bg=='#'
 					&&zone[i-1].bg=='#')
@@ -761,9 +765,20 @@ void create_field(tile_t *field)
 	free(pops);
 	// Summon a random beast
 	random_empty_tile(field)->c=random_creature();
-	// Place a staircase and portal
-	set_bg(random_floor(field),'>',TERM_COLORS_40M[BROWN]);
+	// Place a portal
 	random_grass(field)->c=make_creature(portal);
+}
+int dig_staircase(tile_t *zone,char dir)
+{
+	set_bg(random_floor(zone),dir,TERM_COLORS_40M[BROWN]);
+	/* 
+	 * It will take some time to switch things around if random tile functions return coordinates
+	 * instead of tile addresses so for the time being it will be detected here and returned
+	 */
+	for (int i=0;i<AREA;i++)
+		if (zone[i].bg==dir)
+			return i;
+	return dig_staircase(zone,dir);
 }
 void create_dungeon(tile_t *dungeon)
 {
@@ -788,7 +803,6 @@ void create_dungeon(tile_t *dungeon)
 	}
 	free(pops);
 	random_empty_tile(dungeon)->c=make_creature(scepter);
-	set_bg(random_floor(dungeon),'<',TERM_COLORS_40M[BROWN]);
 	if (b>1) {
 		for (int i=0;i<AREA/240;i++)
 			while (!make_path(dungeon,rand()%AREA));
@@ -802,8 +816,7 @@ int dist_to_wall(tile_t *zone,int pos,char dir)
 	for (;zone[pos].bg!='%';pos=dest) {
 		dest=pos+dir_offset(dir);
 		dist++;
-		if (ABS(pos%WIDTH-dest%WIDTH)==WIDTH-1
-				||dest<0||dest>AREA)
+		if OUT_OF_BOUNDS(dest,pos)
 			return -1;
 	}
 	return dist;
@@ -1052,7 +1065,7 @@ void hide_invisible_tiles(tile_t *zone,int coord)
 }
 void free_creature(creature_t *c)
 {
-	if (!c)
+	if (!c||c==player)
 		return;
 	if (!c->type)
 		free(c->name);

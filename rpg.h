@@ -101,7 +101,7 @@ type_t *read_type (char *filename)
 	}
 	type_t *type=malloc(sizeof(type_t));
 	int scanned=0;
-	char *name=malloc(16),*friends=malloc(16),*enemies=malloc(16);
+	char *name=calloc(16,1),*friends=calloc(16,1),*enemies=calloc(16,1);
 	if (17==(scanned=fscanf(file,ARCHETYPE_SCAN_STR
 					,name,&(type->symbol)
 					,&(type->color)
@@ -112,9 +112,9 @@ type_t *read_type (char *filename)
 					,&(type->str[0]),&(type->str[1])
 					,friends,enemies
 					,&(type->surface),&(type->dimension)))) {
-		type->name=realloc(name,strlen(name));
-		type->friends=realloc(friends,strlen(friends));
-		type->enemies=realloc(enemies,strlen(enemies));
+		type->name=realloc(name,strlen(name)+1);
+		type->friends=realloc(friends,strlen(friends)+1);
+		type->enemies=realloc(enemies,strlen(enemies)+1);
 		type->next=NULL;
 		printf("Finished scanning %s\n",type->name);
 		fclose(file);
@@ -150,6 +150,7 @@ creature_t *make_creature(type_t *type)
 	creature->friends=type->friends;
 	creature->enemies=type->enemies;
 	creature->type=type;
+	creature->spell=NULL;
 	return creature;
 }
 static char *consonants[33]={
@@ -164,7 +165,7 @@ static char *vowels[36]={
 		,"ua","ue","ui","uo","uu","uy"};
 char *random_word(int length)
 {
-	char *word=malloc(2*length);
+	char *word=calloc(2*length+1,1);
 	word[0]='\0';
 	int vowel_start=rand()%2;
 	for (int i=0;i<length;i++) {
@@ -173,7 +174,7 @@ char *random_word(int length)
 		else
 			strcat(word,consonants[rand()%33]);
 	}
-	word=realloc(word,strlen(word));
+	word=realloc(word,strlen(word)+1);
 	return word;
 }
 creature_t *random_creature()
@@ -195,6 +196,7 @@ creature_t *random_creature()
 	creature->surface='B';
 	creature->dimension='B';
 	creature->type=NULL;
+	creature->spell=NULL;
 	return creature;
 }
 type_t *random_type()
@@ -233,7 +235,7 @@ type_t *read_type_list(const char *filename)
 	FILE *creatures=fopen(filename,"r");
 	if (!creatures)
 		return NULL;
-	char *name=malloc(64);
+	char *name=calloc(64,1);
 	type_t *list=NULL;
 	while (!feof(creatures)) {
 		fscanf(creatures,"%s",name);
