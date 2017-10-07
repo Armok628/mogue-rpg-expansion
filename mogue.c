@@ -25,7 +25,7 @@ typedef struct tile_t {
 // Important creature definitions
 static creature_t player_c={.name="Player",.symbol='@',.color=9,.type=NULL
 	,.max_hp=50,.hp=25,.res=10,.agi=5,.wis=7,.str=6 // To-do: Randomize a little
-	,.friends=".",.enemies="&",.type=NULL,.surface='B',.dimension='B'};
+	,.friends=".",.enemies="&",.surface='B',.dimension='B'};
 static creature_t *player=&player_c;
 static type_t zombie_type={.name="Zombie",.symbol='Z',.color=12
 	,.hp={25,40},.res={10,10},.agi={1,2},.wis={0,0},.str={5,9}
