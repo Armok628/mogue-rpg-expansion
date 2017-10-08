@@ -858,8 +858,6 @@ bool make_path(tile_t *zone,int pos)
 }
 bool visible(tile_t *zone,int c1,int c2)
 {
-	static int debug=0;
-	debug++;
 	int p[2]={c1%WIDTH,c1/WIDTH};
 	int q[2]={c2%WIDTH,c2/WIDTH};
 	int vec[2]={q[0]-p[0],q[1]-p[1]};
