@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <math.h>
+#include <wchar.h>
 #include "display.h"
 #include "rpg.h"
 #define NEW(x) malloc(sizeof(x))
@@ -54,10 +55,9 @@ int dir_offset(char dir);
 void set_wall (tile_t *tile,char wall,char *wall_c);
 void set_bg (tile_t *tile,char bg,char *bg_c);
 void set_tile (tile_t *tile,char wall,char *wall_c,char bg,char *bg_c);
-tile_t *random_tile(tile_t *zone);
-tile_t *random_empty_tile(tile_t *zone);
-tile_t *random_grass(tile_t *zone);
-tile_t *random_floor(tile_t *zone);
+int random_empty_coord(tile_t *zone);
+int random_grass_coord(tile_t *zone);
+int random_floor_coord(tile_t *zone);
 int max_damage(creature_t *attacker,creature_t *defender);
 int attack_damage(creature_t *attacker,creature_t *defender);
 char move_tile(tile_t *zone,int pos,char dir);
@@ -286,30 +286,29 @@ void set_tile (tile_t *tile,char wall,char *wall_c,char bg,char *bg_c)
 	set_wall(tile,wall,wall_c);
 	set_bg(tile,bg,bg_c);
 }
-tile_t *random_tile(tile_t *zone)
+int random_empty_coord(tile_t *zone)
 {
-	return &zone[rand()%AREA];
+	int c;
+	do
+		c=rand()%AREA;
+	while (zone[c].wall||zone[c].c);
+	return c;
 }
-tile_t *random_empty_tile(tile_t *zone)
+int random_grass_coord(tile_t *zone)
 {
-	tile_t *tile=random_tile(zone);
-	if (!tile->wall&&!tile->c)
-		return tile;
-	return random_empty_tile(zone);
+	int c;
+	do
+		c=random_empty_coord(zone);
+	while (!char_in_string(zone[c].bg,grass_chars));
+	return c;
 }
-tile_t *random_grass(tile_t *zone)
+int random_floor_coord(tile_t *zone)
 {
-	tile_t *tile=random_empty_tile(zone);
-	if (char_in_string(tile->bg,grass_chars))
-		return tile;
-	return (random_grass(zone));
-}
-tile_t *random_floor(tile_t *zone)
-{
-	tile_t *tile=random_empty_tile(zone);
-	if (tile->bg=='#')
-		return tile;
-	return (random_floor(zone));
+	int c;
+	do
+		c=random_empty_coord(zone);
+	while (zone[c].bg!='#');
+	return c;
 }
 int max_damage(creature_t *attacker,creature_t *defender)
 {
@@ -719,11 +718,11 @@ tile_t *find_surface(tile_t *zone,char surface)
 	switch (surface)
 	{
 		case 'G':
-			return random_grass(zone);
+			return &zone[random_grass_coord(zone)];
 		case 'F':
-			return random_floor(zone);
+			return &zone[random_floor_coord(zone)];
 		default:
-			return random_empty_tile(zone);
+			return &zone[random_empty_coord(zone)];
 	}
 }
 void create_field(tile_t *field)
@@ -764,21 +763,15 @@ void create_field(tile_t *field)
 	}
 	free(pops);
 	// Summon a random beast
-	random_empty_tile(field)->c=random_creature();
+	field[random_empty_coord(field)].c=random_creature();
 	// Place a portal
-	random_grass(field)->c=make_creature(portal);
+	field[random_grass_coord(field)].c=make_creature(portal);
 }
 int dig_staircase(tile_t *zone,char dir)
 {
-	set_bg(random_floor(zone),dir,TERM_COLORS_40M[BROWN]);
-	/* 
-	 * It will take some time to switch things around if random tile functions return coordinates
-	 * instead of tile addresses so for the time being it will be detected here and returned
-	 */
-	for (int i=0;i<AREA;i++)
-		if (zone[i].bg==dir)
-			return i;
-	return dig_staircase(zone,dir);
+	int c=random_floor_coord(zone);
+	set_bg(&zone[c],dir,TERM_COLORS_40M[BROWN]);
+	return c;
 }
 void create_dungeon(tile_t *dungeon)
 {
@@ -802,7 +795,7 @@ void create_dungeon(tile_t *dungeon)
 		}
 	}
 	free(pops);
-	random_empty_tile(dungeon)->c=make_creature(scepter);
+	dungeon[random_empty_coord(dungeon)].c=make_creature(scepter);
 	if (b>1) {
 		for (int i=0;i<AREA/240;i++)
 			while (!make_path(dungeon,rand()%AREA));
