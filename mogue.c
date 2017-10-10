@@ -3,7 +3,6 @@
 #include <stdlib.h>
 #include <time.h>
 #include <math.h>
-#include <wchar.h>
 #include "display.h"
 #include "rpg.h"
 #define NEW(x) malloc(sizeof(x))
@@ -115,10 +114,10 @@ int main(int argc,char **argv)
 	tile_t *field=calloc(AREA,sizeof(tile_t))
 		,*dungeon=calloc(AREA,sizeof(tile_t))
 		,*c_z;
-	int p_c,fc_c;
+	int p_c,fs_c;
 	// Initialize field
 	create_field(field);
-	fc_c=dig_staircase(field,'>');
+	fs_c=dig_staircase(field,'>');
 	c_z=field;
 	// Initialize player
 	spawn_player(c_z,&p_c);
@@ -152,7 +151,7 @@ int main(int argc,char **argv)
 		} else if (input=='<'&&c_z[p_c].bg=='<'&&c_z[p_c].c==player) {
 			c_z[p_c].c=NULL;
 			c_z=field;
-			p_c=fc_c;
+			p_c=fs_c;
 			c_z[p_c].c=player;
 			draw_board(c_z);
 			continue;
@@ -204,7 +203,7 @@ int main(int argc,char **argv)
 			case 'O':
 				free_creatures(field);
 				create_field(field);
-				fc_c=dig_staircase(field,'>');
+				fs_c=dig_staircase(field,'>');
 				spawn_player(field,&p_c);
 				field[p_c].c=player;
 				draw_board(field);
