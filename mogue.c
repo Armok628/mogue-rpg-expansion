@@ -960,6 +960,8 @@ void player_cast_spell(tile_t *c_z,int p_c)
 	}
 	lines_printed=1;
 	int target_coord;
+	if (input=='q')
+		return;
 	switch (spell->target) {
 		case SELF:
 			target_coord=p_c;
