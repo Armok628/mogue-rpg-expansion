@@ -235,11 +235,11 @@ void draw_tile(tile_t *tile)
 	if (tile->c)
 		printf("%s%c",TERM_COLORS_40M[tile->c->color]
 				,tile->c->symbol);
+	else if (tile->wall)
+		printf("%s%c",tile->wall_c,tile->wall);
 	else if (tile->corpse)
 		printf("%s%c",TERM_COLORS_41M[tile->corpse->color]
 				,tile->corpse->symbol);
-	else if (tile->wall)
-		printf("%s%c",tile->wall_c,tile->wall);
 	else
 		printf("%s%c",tile->bg_c,tile->bg);
 }
@@ -413,6 +413,14 @@ char move_tile(tile_t *zone,int pos,char dir)
 				to->corpse=to->c;
 			}
 			to->c=NULL;
+			if (!(rand()%5)&&from->c->str<10) {
+				NEXT_LINE();
+				printf("%s%c%s is now stronger from it."
+						,TERM_COLORS_40M[from->c->color]
+						,from->c->symbol
+						,RESET_COLOR);
+				from->c->str++;
+			}
 		} else if (to->c&&to->c->hp>0) {
 			return '\0';
 		}
@@ -426,6 +434,14 @@ char move_tile(tile_t *zone,int pos,char dir)
 		// Redraw the changed positions
 		draw_pos(zone,pos);
 		draw_pos(zone,dest);
+		if (!(rand()%300)&&to->c->agi<10) {
+			NEXT_LINE();
+			printf("%s%c%s is now more agile from moving."
+					,TERM_COLORS_40M[to->c->color]
+					,to->c->symbol
+					,RESET_COLOR);
+			to->c->agi++;
+		}
 		// Return the value of what was killed
 		return killed;
 	} else
@@ -1052,7 +1068,7 @@ void cast_spell(tile_t *zone,int caster_coord,spell_t *spell,int target_coord)
 	}
 	if (!(rand()%20)&&caster->wis<10) {
 		NEXT_LINE();
-		printf("%s%c%s is now wiser for it."
+		printf("%s%c%s is now wiser from it."
 				,TERM_COLORS_40M[caster->color]
 				,caster->symbol
 				,RESET_COLOR);
