@@ -24,7 +24,7 @@ typedef struct tile_t {
 } tile_t;
 // Important creature definitions
 static creature_t player_c={.name="Player",.symbol='@',.color=9,.type=NULL
-	,.max_hp=50,.hp=25,.res=10,.agi=5,.wis=10/*7*/,.str=6 // To-do: Randomize a little
+	,.max_hp=50,.hp=25,.res=10,.agi=5,.wis=7,.str=6 // To-do: Randomize a little
 	,.friends=".",.enemies="&",.surface='B',.dimension='B'};
 static creature_t *player=&player_c;
 static type_t zombie_type={.name="Zombie",.symbol='Z',.color=12
@@ -1049,6 +1049,14 @@ void cast_spell(tile_t *zone,int caster_coord,spell_t *spell,int target_coord)
 			if (target->c->hp>target->c->max_hp)
 				target->c->hp=target->c->max_hp;
 			draw_pos(zone,target_coord);
+	}
+	if (!(rand()%20)&&caster->wis<10) {
+		NEXT_LINE();
+		printf("%s%c%s is now wiser for it."
+				,TERM_COLORS_40M[caster->color]
+				,caster->symbol
+				,RESET_COLOR);
+		caster->wis++;
 	}
 }
 void hide_invisible_tiles(tile_t *zone,int coord)
