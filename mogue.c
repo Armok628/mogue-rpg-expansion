@@ -24,7 +24,7 @@ typedef struct tile_t {
 } tile_t;
 // Important creature definitions
 static creature_t player_c={.name="Player",.symbol='@',.color=9,.type=NULL
-	,.max_hp=50,.hp=25,.res=10,.agi=5,.wis=7,.str=6 // To-do: Randomize a little
+	,.max_hp=50,.hp=25,.res=10,.agi=5,.wis=10/*7*/,.str=6 // To-do: Randomize a little
 	,.friends=".",.enemies="&",.surface='B',.dimension='B'};
 static creature_t *player=&player_c;
 static type_t zombie_type={.name="Zombie",.symbol='Z',.color=12
@@ -136,6 +136,9 @@ int main(int argc,char **argv)
 		if (input=='q')
 			break;
 		if (input=='?') {
+			move_cursor(0,HEIGHT);
+			clear_line();
+			printf("Inspecting tile...");
 			look_mode(c_z,p_c);
 		} else if (input=='H') {
 			hide_invisible_tiles(c_z,p_c);
@@ -866,9 +869,6 @@ int look_mode(tile_t *zone,int look_coord)
 {
 	int start=look_coord;
 	bool vis;
-	move_cursor(0,HEIGHT);
-	clear_line();
-	printf("Inspecting tile...");
 	move_cursor(look_coord%WIDTH,look_coord/WIDTH);
 	printf("%sX%s",TERM_COLORS_40M[7],RESET_COLOR);
 	char input='.';
@@ -962,6 +962,9 @@ void player_cast_spell(tile_t *c_z,int p_c)
 	int target_coord;
 	if (input=='q')
 		return;
+	move_cursor(0,HEIGHT);
+	clear_line();
+	printf("Selecting target...");
 	switch (spell->target) {
 		case SELF:
 			target_coord=p_c;
