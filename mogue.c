@@ -341,7 +341,7 @@ char move_tile(tile_t *zone,int pos,char dir)
 				draw_creature(from->c);
 				printf(" attacked ");
 				draw_creature(to->c);
-				printf(" but missed!");
+				printf(" but missed");
 			} else if (damage==0) {
 				NEXT_LINE();
 				draw_creature(from->c);
