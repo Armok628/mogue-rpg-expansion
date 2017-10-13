@@ -184,7 +184,7 @@ int main(int argc,char **argv)
 			}
 			update(c_z);
 			continue;
-		} else if (input=='R'&&has_scepter&&player->hp<0&&!c_z[p_c].c) {
+		} else if (input=='R'&&has_scepter&&player->hp<0) {
 			c_z[p_c].c=player;
 			c_z[p_c].corpse=NULL;
 			has_scepter=false;
