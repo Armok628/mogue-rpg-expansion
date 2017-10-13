@@ -485,7 +485,8 @@ char decide_move_direction(tile_t *zone,int i)
 		if (OUT_OF_BOUNDS(dest,i))
 			continue;
 		// If they are not the adjacent creature's friend and fail a flee check
-		if (zone[dest].c&&!char_in_string(zone[i].c->symbol,zone[dest].c->friends)
+		if (zone[dest].c&&zone[i].c
+				&&!char_in_string(zone[i].c->symbol,zone[dest].c->friends)
 				&&will_flee(zone[i].c,zone[dest].c)) {
 			dir=(5-(j-5))+'0'; // Reverse direction
 			dest=i+dir_offset(dir);
@@ -518,6 +519,8 @@ bool creature_cast_spell(tile_t *zone,int coord)
 	spell_t *spell=zone[coord].c->spell;
 	for (spell_t *s=spell;s;s=s->next)
 		spell_count++;
+	if (!spell_count)
+		return false;
 	int chosen_spell=rand()%spell_count;
 	for (int i=0;i<chosen_spell;i++)
 		spell=spell->next;
@@ -975,7 +978,7 @@ void player_cast_spell(tile_t *c_z,int p_c)
 		clear_line();
 	}
 	lines_printed=1;
-	int target_coord;
+	int target_coord=p_c;
 	if (input=='q')
 		return;
 	move_cursor(0,HEIGHT);
@@ -983,7 +986,6 @@ void player_cast_spell(tile_t *c_z,int p_c)
 	printf("Selecting target...");
 	switch (spell->target) {
 		case SELF:
-			target_coord=p_c;
 			break;
 		case TOUCH:
 			target_coord=p_c+dir_offset(fgetc(stdin));
