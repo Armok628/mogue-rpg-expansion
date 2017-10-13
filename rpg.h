@@ -51,7 +51,13 @@ type_t *add_type(type_t *arg,type_t *list)
 }
 void draw_creature(creature_t *c)
 {
-	printf("%s%c%s",c->hp<0?TERM_COLORS_41M[c->color]:TERM_COLORS_40M[c->color]
+	printf("%s%c%s",TERM_COLORS_40M[c->color]
+			,c->symbol
+			,RESET_COLOR);
+}
+void draw_corpse(creature_t *c)
+{
+	printf("%s%c%s",TERM_COLORS_41M[c->color]
 			,c->symbol
 			,RESET_COLOR);
 }

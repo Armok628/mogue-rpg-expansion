@@ -233,8 +233,10 @@ void draw_tile(tile_t *tile)
 {
 	if (tile->wall)
 		printf("%s%c",tile->wall_c,tile->wall);
-	else if (tile->c||tile->corpse)
-		draw_creature(tile->c?tile->c:tile->corpse);
+	else if (tile->c)
+		draw_creature(tile->c);
+	else if (tile->corpse)
+		draw_corpse(tile->corpse);
 	else
 		printf("%s%c",tile->bg_c,tile->bg);
 }
