@@ -49,6 +49,12 @@ type_t *add_type(type_t *arg,type_t *list)
 	a->next=arg;
 	return list;
 }
+void draw_creature(creature_t *c)
+{
+	printf("%s%c%s",c->hp<0?TERM_COLORS_41M[c->color]:TERM_COLORS_40M[c->color]
+			,c->symbol
+			,RESET_COLOR);
+}
 void print_type(type_t *type)
 {
 	printf("%s: %s%c%s\n",type->name,TERM_COLORS_40M[type->color],type->symbol,RESET_COLOR);
@@ -58,7 +64,14 @@ void print_type(type_t *type)
 			,type->agi[0],type->agi[1]
 			,type->wis[0],type->wis[1]
 			,type->str[0],type->str[1]);
-	printf("Friends: %s\nEnemies: %s\n",type->friends,type->enemies);
+	if (type->friends)
+		printf("Friends: %s\n",type->friends);
+	else
+		printf("No friends\n");
+	if (type->enemies)
+		printf("Enemies: %s\n",type->enemies);
+	else
+		printf("No enemies\n");
 	printf("Spawn restrictions: %c/%c\n",type->surface,type->dimension);
 }
 void print_type_list(type_t *type)
@@ -118,6 +131,14 @@ type_t *read_type (char *filename)
 		type->next=NULL;
 		printf("Finished scanning %s\n",type->name);
 		fclose(file);
+		if (!strcmp(type->friends,"none")) {
+			free(type->friends);
+			type->friends=NULL;
+		}
+		if (!strcmp(type->enemies,"none")) {
+			free(type->enemies);
+			type->enemies=NULL;
+		}
 		print_type(type);
 		return type;
 	}
@@ -128,10 +149,11 @@ type_t *read_type (char *filename)
 	fclose(file);
 	return NULL;
 }
-void print_creature(creature_t *creature)
+void print_creature_stats(creature_t *creature)
 {
-	printf("%s%s %s%c%s HP: %i/%i | RES: %i | AGI: %i | WIS: %i | STR: %i\n",RESET_COLOR
-			,creature->name,TERM_COLORS_40M[creature->color],creature->symbol,RESET_COLOR
+	printf("%s%s ",RESET_COLOR,creature->name);
+	draw_creature(creature);
+	printf(" HP: %i/%i | RES: %i | AGI: %i | WIS: %i | STR: %i\n"
 			,creature->hp,creature->max_hp
 			,creature->res,creature->agi,creature->wis,creature->str);
 }
@@ -223,10 +245,11 @@ type_t *random_type()
 	type->str[0]=MIN(i1,i2);
 	type->str[1]=MAX(i1,i2);
 	// To-do: Find some way to randomize:
-	type->friends=".";
-	type->enemies=".";
+	type->friends=NULL;
+	type->enemies=NULL;
 	type->surface='B';
 	type->dimension='B';
+	type->next=NULL;
 	print_type(type);
 	return type;
 }
@@ -247,26 +270,3 @@ type_t *read_type_list(const char *filename)
 	fclose(creatures);
 	return list;
 }
-/*
-int main(int argc,char **argv)
-{
-	clear_screen();
-	move_cursor(0,0);
-	unsigned int seed;
-	if (argc>1)
-		sscanf(argv[1],"%u",&seed);
-	else
-		seed=time(NULL);
-	srand(seed);
-	printf("Seed: %u\n",seed);
-	type_t *list=read_type_list("index");
-			// To-do: Spawn random amounts of each creature type
-			// To-do: Specify in HRAWS where creatures can exist (grass, floor, overworld, dungeon)
-	printf("\nTypes scanned: %i\n\n",type_list_length(list));
-	type_t *test_ctype=random_type();
-	creature_t *test_creature=make_creature(test_ctype);
-	print_creature(test_creature);
-	free(test_creature);
-	return 0;
-}
-*/

@@ -125,7 +125,7 @@ int main(int argc,char **argv)
 	clear_screen();
 	draw_board(c_z);
 	move_cursor(0,HEIGHT);
-	print_creature(player);
+	print_creature_stats(player);
 	// Control loop
 	char input;
 	bool has_scepter=false;
@@ -184,8 +184,7 @@ int main(int argc,char **argv)
 			}
 			update(c_z);
 			continue;
-		} else if (input=='R'&&has_scepter
-				&&player->hp<0) {
+		} else if (input=='R'&&has_scepter&&player->hp<0&&!c_z[p_c].c) {
 			c_z[p_c].c=player;
 			c_z[p_c].corpse=NULL;
 			has_scepter=false;
@@ -232,14 +231,10 @@ int main(int argc,char **argv)
 // Function definitions
 void draw_tile(tile_t *tile)
 {
-	if (tile->c)
-		printf("%s%c",TERM_COLORS_40M[tile->c->color]
-				,tile->c->symbol);
-	else if (tile->wall)
+	if (tile->wall)
 		printf("%s%c",tile->wall_c,tile->wall);
-	else if (tile->corpse)
-		printf("%s%c",TERM_COLORS_41M[tile->corpse->color]
-				,tile->corpse->symbol);
+	else if (tile->c||tile->corpse)
+		draw_creature(tile->c?tile->c:tile->corpse);
 	else
 		printf("%s%c",tile->bg_c,tile->bg);
 }
@@ -255,6 +250,8 @@ void draw_board(tile_t *zone)
 }
 bool char_in_string(char c,char *string)
 {
+	if (!string)
+		return false;
 	for (;*string;string++)
 		if (c==*string)
 			return true;
@@ -341,32 +338,22 @@ char move_tile(tile_t *zone,int pos,char dir)
 			int damage=attack_damage(from->c,to->c);
 			if (damage<0) {
 				NEXT_LINE();
-				printf("%s%c%s attacked %s%c%s but missed"
-						,TERM_COLORS_40M[from->c->color]
-						,from->c->symbol
-						,RESET_COLOR
-						,TERM_COLORS_40M[to->c->color]
-						,to->c->symbol
-						,RESET_COLOR);
+				draw_creature(from->c);
+				printf(" attacked ");
+				draw_creature(to->c);
+				printf(" but missed!");
 			} else if (damage==0) {
 				NEXT_LINE();
-				printf("%s%c%s attacked %s%c%s but was too weak to cause damage"
-						,TERM_COLORS_40M[from->c->color]
-						,from->c->symbol
-						,RESET_COLOR
-						,TERM_COLORS_40M[to->c->color]
-						,to->c->symbol
-						,RESET_COLOR);
+				draw_creature(from->c);
+				printf(" attacked ");
+				draw_creature(to->c);
+				printf(" but was too weak to inflict damage");
 			} else {
 				NEXT_LINE();
-				printf("%s%c%s attacked %s%c%s for %i damage"
-						,TERM_COLORS_40M[from->c->color]
-						,from->c->symbol
-						,RESET_COLOR
-						,TERM_COLORS_40M[to->c->color]
-						,to->c->symbol
-						,RESET_COLOR
-						,damage);
+				draw_creature(from->c);
+				printf(" attacked ");
+				draw_creature(to->c);
+				printf(" for %i damage",damage);
 				to->c->hp-=damage;
 			}
 			if (to->c->hp>0) {
@@ -415,10 +402,8 @@ char move_tile(tile_t *zone,int pos,char dir)
 			to->c=NULL;
 			if (!(rand()%5)&&from->c->str<10) {
 				NEXT_LINE();
-				printf("%s%c%s is now stronger from it."
-						,TERM_COLORS_40M[from->c->color]
-						,from->c->symbol
-						,RESET_COLOR);
+				draw_creature(from->c);
+				printf(" is now stronger from it.");
 				from->c->str++;
 			}
 		} else if (to->c&&to->c->hp>0) {
@@ -436,10 +421,8 @@ char move_tile(tile_t *zone,int pos,char dir)
 		draw_pos(zone,dest);
 		if (!(rand()%300)&&to->c->agi<10) {
 			NEXT_LINE();
-			printf("%s%c%s is now more agile from moving."
-					,TERM_COLORS_40M[to->c->color]
-					,to->c->symbol
-					,RESET_COLOR);
+			draw_creature(to->c);
+			printf(" is now more agile from moving.");
 			to->c->agi++;
 		}
 		// Return the value of what was killed
@@ -596,7 +579,7 @@ void update(tile_t *zone)
 	// Redraw the player's stats
 	move_cursor(0,HEIGHT);
 	clear_line();
-	print_creature(player);
+	print_creature_stats(player);
 }
 bool try_summon(tile_t *tile,type_t *type)
 {
@@ -911,7 +894,7 @@ int look_mode(tile_t *zone,int look_coord)
 		move_cursor(0,HEIGHT+1);
 		// Draw whatever is at the position under the X
 		if (zone[look_coord].c) {
-			print_creature(zone[look_coord].c);
+			print_creature_stats(zone[look_coord].c);
 			putchar('\n');
 			if (zone[look_coord].c->type) {
 				print_type(zone[look_coord].c->type);
@@ -1001,11 +984,8 @@ void cast_spell(tile_t *zone,int caster_coord,spell_t *spell,int target_coord)
 	// Roll for fail to cast
 	if (rand()%10<(spell->cost/10)-caster->wis&&rand()%10) {
 		NEXT_LINE();
-		printf("%s%c%s tries to cast %s but fails!"
-				,TERM_COLORS_40M[caster->color]
-				,caster->symbol
-				,RESET_COLOR
-				,spell->name);
+		draw_creature(caster);
+		printf(" tries to cast %s but fails!",spell->name);
 		return;
 	}
 	tile_t *target=&zone[target_coord];
@@ -1016,26 +996,22 @@ void cast_spell(tile_t *zone,int caster_coord,spell_t *spell,int target_coord)
 	int effect=1+rand()%(spell->cost/(11-caster->wis));
 	NEXT_LINE();
 	// Print caster and spell name
-	printf("%s%c%s casts %s "
-			,TERM_COLORS_40M[caster->color]
-			,caster->symbol
-			,RESET_COLOR
-			,spell->name);
+	draw_creature(caster);
+	printf(" casts %s ",spell->name);
 	switch (spell->target) {
 		case SELF:
 			printf("on itself, ");
 			break;
 		default:
-			if (spell->effect!=RESURRECT)
-				printf("on %s%c%s, "
-						,TERM_COLORS_40M[target->c->color]
-						,target->c->symbol
-						,RESET_COLOR);
-			else
-				printf("on %s%c%s, "
-						,TERM_COLORS_41M[target->corpse->color]
-						,target->corpse->symbol
-						,RESET_COLOR);
+			if (spell->effect!=RESURRECT) {
+				printf("on ");
+				draw_creature(target->c);
+				printf(", ");
+			} else {
+				printf("on ");
+				draw_creature(target->corpse);
+				printf(", ");
+			}
 			break;
 	}
 	// Enact and print resulting effect
@@ -1070,10 +1046,8 @@ void cast_spell(tile_t *zone,int caster_coord,spell_t *spell,int target_coord)
 	}
 	if (!(rand()%20)&&caster->wis<10) {
 		NEXT_LINE();
-		printf("%s%c%s is now wiser from it."
-				,TERM_COLORS_40M[caster->color]
-				,caster->symbol
-				,RESET_COLOR);
+		draw_creature(caster);
+		printf(" is now wiser from it.");
 		caster->wis++;
 	}
 }
