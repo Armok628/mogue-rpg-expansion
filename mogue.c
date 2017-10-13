@@ -25,20 +25,20 @@ typedef struct tile_t {
 // Important creature definitions
 static creature_t player_c={.name="Player",.symbol='@',.color=9,.type=NULL
 	,.max_hp=50,.hp=25,.res=10,.agi=5,.wis=7,.str=6 // To-do: Randomize a little
-	,.friends=".",.enemies="&",.surface='B',.dimension='B'};
+	,.friends=NULL,.enemies=NULL,.surface='B',.dimension='B'};
 static creature_t *player=&player_c;
 static type_t zombie_type={.name="Zombie",.symbol='Z',.color=12
 	,.hp={25,40},.res={10,10},.agi={1,2},.wis={0,0},.str={5,9}
-	,.friends=".",.enemies=".",.surface='B',.dimension='B'};
+	,.friends=NULL,.enemies=NULL,.surface='B',.dimension='B'};
 static type_t *zombie=&zombie_type;
 // Item "creature" definitions
 static type_t portal_type={.name="Portal",.symbol='O',.color=10
 	,.hp={0,0},.res={0,0},.agi={0,0},.wis={0,0},.str={0,0}
-	,.friends=".",.enemies=".",.surface='G',.dimension='F'};
+	,.friends=NULL,.enemies=NULL,.surface='G',.dimension='F'};
 static type_t *portal=&portal_type;
 static type_t scepter_type={.name="Scepter",.symbol='I',.color=10
 	,.hp={0,0},.res={0,0},.agi={0,0},.wis={0,0},.str={0,0}
-	,.friends=".",.enemies=".",.surface='F',.dimension='D'};
+	,.friends=NULL,.enemies=NULL,.surface='F',.dimension='D'};
 static type_t *scepter=&scepter_type;
 // Spell definitions (possibly temporary)
 spell_t missile={.name="Magic Missile",.cost=30,.target=TARGET,.effect=DAMAGE};
