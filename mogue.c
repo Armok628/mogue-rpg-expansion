@@ -742,7 +742,7 @@ void create_field(tile_t *field)
 	cull_walls(field);
 	if (!typelist) {
 		typelist=read_type_list("index");
-		//add_type(random_type(),typelist); // Get some wildcards
+		add_type(random_type(),typelist); // Get some wildcards
 	}
 	// Figure out how many creature types can spawn in this zone
 	for (type_t *t=typelist;t;t=t->next)
@@ -1025,7 +1025,7 @@ void cast_spell(tile_t *zone,int caster_coord,spell_t *spell,int target_coord)
 		case DAMAGE:
 			printf("doing %i damage",effect);
 			target->c->hp-=effect;
-			if (target->c->hp<0) {
+			if (target->c->hp<=0) {
 				printf(" and killing it!");
 				target->corpse=target->c;
 				target->c=NULL;
