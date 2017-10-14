@@ -40,7 +40,7 @@ void set_cursor_visibility(int visible)
 	else
 		printf("\e[?25l");
 }
-void set_terminal_canon(int canon)
+void set_canon(int canon)
 {
 	static struct termios old_term,new_term;
 	if (!canon) {
@@ -49,8 +49,20 @@ void set_terminal_canon(int canon)
 		new_term=old_term;
 		new_term.c_lflag&=(~ICANON&~ECHO);
 		tcsetattr(0,TCSANOW,&new_term);
-	} else {
+	} else
 		tcsetattr(0,TCSANOW,&old_term);
-	}
+}
+void set_blocking(int block)
+{
+	static struct termios old_term,new_term;
+	if (!block) {
+		if (!old_term.c_lflag)
+			tcgetattr(0,&old_term);
+		new_term=old_term;
+		new_term.c_cc[VMIN]=0;
+		new_term.c_cc[VTIME]=0;
+		tcsetattr(0,TCSANOW,&new_term);
+	} else
+		tcsetattr(0,TCSANOW,&old_term);
 }
 #endif

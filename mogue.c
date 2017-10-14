@@ -108,7 +108,7 @@ int main(int argc,char **argv)
 	fprintf(stderr,"Seed: %u\n",seed);
 	srand(seed);
 	// Set terminal attributes
-	set_terminal_canon(false);
+	set_canon(false);
 	set_cursor_visibility(0);
 	// Variable definitions
 	tile_t *field=calloc(AREA,sizeof(tile_t))
@@ -221,7 +221,7 @@ int main(int argc,char **argv)
 	free(dungeon);
 	free_typelist(typelist);
 	// Clean up terminal
-	set_terminal_canon(true);
+	set_canon(true);
 	printf("%s",RESET_COLOR);
 	set_cursor_visibility(1);
 	NEXT_LINE();
