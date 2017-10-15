@@ -397,10 +397,10 @@ char move_tile(tile_t *zone,int pos,char dir)
 				return 'I';
 			}
 			killed=to->c->symbol; // Remember what was killed
-			if (to->corpse)
-				free(to->corpse);
 			// If it's not on stairs, place a corpse
 			if (!char_in_string(to->bg,"<>")) {
+				if (to->corpse)
+					free_creature(to->corpse);
 				to->corpse=to->c;
 			}
 			to->c=NULL;
@@ -1050,6 +1050,8 @@ void cast_spell(tile_t *zone,int caster_coord,spell_t *spell,int target_coord)
 			target->c->hp-=effect;
 			if (target->c->hp<=0) {
 				printf(" and killing it!");
+				if (target->corpse)
+					free_creature(target->corpse);
 				target->corpse=target->c;
 				target->c=NULL;
 				draw_pos(zone,target_coord);
