@@ -321,7 +321,7 @@ int attack_damage(creature_t *attacker,creature_t *defender)
 	int damage;
 	if (D(20)>10+defender->agi-attacker->agi) {
 		damage=max_damage(attacker,defender);
-		return damage<0?0:D(damage);
+		return damage<=0?0:D(damage);
 	} else
 		return -1;
 }
@@ -801,7 +801,7 @@ void create_dungeon(tile_t *dungeon)
 	int *pops=rand_fixed_sum(typelist_length,m);
 	int i=0;
 	for (type_t *t=typelist;t;t=t->next) {
-		if (t->dimension!='F') {
+		if (t->dimension!='F'&&t->surface!='G') {
 			for (int j=0;j<pops[i];j++)
 				find_surface(dungeon,t->surface)->c=make_creature(t);
 			i++;
