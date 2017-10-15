@@ -78,7 +78,24 @@ void print_type(type_t *type)
 		printf("Enemies: %s\n",type->enemies);
 	else
 		printf("No enemies\n");
-	printf("Spawn restrictions: %c/%c\n",type->surface,type->dimension);
+	switch (type->surface) {
+		case 'G':
+			printf("Spawns on grass");
+			break;
+		case 'F':
+			printf("Spawns on floors");
+			break;
+		case 'B':
+			printf("Spawns on any surface");
+	}
+	switch (type->dimension) {
+		case 'F':
+			printf(" above ground");
+			break;
+		case 'D':
+			printf(" in dungeons");
+	}
+	putchar('\n');
 }
 void print_type_list(type_t *type)
 {
@@ -229,6 +246,8 @@ creature_t *random_creature()
 }
 type_t *random_type()
 {
+	static char svals[3]={'F','G','B'};
+	static char dvals[3]={'F','D','B'};
 	type_t *type=malloc(sizeof(type_t));
 	type->symbol=(char)RAND_IN_RANGE(33,126);
 	type->color=RAND_IN_RANGE(2,16);
@@ -250,11 +269,11 @@ type_t *random_type()
 	i1=D(10); i2=D(10);
 	type->str[0]=MIN(i1,i2);
 	type->str[1]=MAX(i1,i2);
+	type->surface=svals[rand()%3];
+	type->dimension=dvals[rand()%3];
 	// To-do: Find some way to randomize:
 	type->friends=NULL;
 	type->enemies=NULL;
-	type->surface='B';
-	type->dimension='B';
 	type->next=NULL;
 	print_type(type);
 	return type;

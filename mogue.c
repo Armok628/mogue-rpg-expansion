@@ -231,6 +231,7 @@ int main(int argc,char **argv)
 // Function definitions
 void draw_tile(tile_t *tile)
 {
+	// Wall > Creature > Corpse > Floor
 	if (tile->wall)
 		printf("%s%c",tile->wall_c,tile->wall);
 	else if (tile->c)
@@ -327,6 +328,7 @@ int attack_damage(creature_t *attacker,creature_t *defender)
 char move_tile(tile_t *zone,int pos,char dir)
 {
 	int dest=pos+dir_offset(dir);
+	// Don't allow movement out of bounds
 	if (OUT_OF_BOUNDS(dest,pos))
 		return '\0';
 	tile_t *from=&zone[pos],*to=&zone[dest];
@@ -336,7 +338,7 @@ char move_tile(tile_t *zone,int pos,char dir)
 	// If the destination is not the source
 	if (dest!=pos) {
 		if (to->c) {
-			// To-do: Abstract this
+			// Print the resulting action
 			int damage=attack_damage(from->c,to->c);
 			if (damage<0) {
 				NEXT_LINE();
@@ -379,14 +381,14 @@ char move_tile(tile_t *zone,int pos,char dir)
 		if (to->c&&to->c->hp<=0) {
 			if (to->c->symbol=='O') { // If it was a portal
 				if (from->c!=player) // If the player didn't enter it
-					free_creature(from->c);
+					free_creature(from->c); // destroy the entering creature
 				from->c=NULL;
 				free_creature(to->c);
 				to->c=NULL;
 				draw_pos(zone,pos);
 				draw_pos(zone,dest);
 				return 'O';
-			} else if (to->c->symbol=='I') {
+			} else if (to->c->symbol=='I') { // If it was a scepter
 				free_creature(to->c);
 				to->c=from->c;
 				from->c=NULL;
@@ -412,10 +414,6 @@ char move_tile(tile_t *zone,int pos,char dir)
 			return '\0';
 		}
 		// Move the creature
-		/*
-		if (to->c&&to->c!=player)
-			free_creature(to->c);
-		*/
 		to->c=from->c;
 		from->c=NULL;
 		// Redraw the changed positions
@@ -427,7 +425,7 @@ char move_tile(tile_t *zone,int pos,char dir)
 			printf(" is now more agile from moving.");
 			to->c->agi++;
 		}
-		// Return the value of what was killed
+		// Return the symbol of what was killed
 		return killed;
 	} else
 		return '\0';
@@ -441,8 +439,10 @@ bool will_flee(creature_t *flee_r,creature_t *flee_e)
 }
 char alternate_direction(tile_t *zone,int pos,char dir)
 {
+	// List of alternate directions to try to move in for each direction
 	int alts[10][2]={{0,0},{2,4},{1,3},{2,6},{1,7},{5,5},{3,9},{4,8},{7,9},{6,8}};
 	char tries[2];
+	// Look at both directions and remember if they were blocked
 	tries[0]=alts[dir-'0'][0]+'0';
 	tries[1]=alts[dir-'0'][1]+'0';
 	bool occupied[2]={false,false};
@@ -454,9 +454,10 @@ char alternate_direction(tile_t *zone,int pos,char dir)
 		if (tile.c||tile.wall)
 			occupied[i]=true;
 	}
+	// If only one was blocked, return the other
 	if (occupied[0]^occupied[1])
 		return occupied[1]?tries[0]:tries[1];
-	else
+	else // If both, give up. If neither, return either one
 		return occupied[0]?'\0':(rand()%2?tries[0]:tries[1]);
 }
 char decide_move_direction(tile_t *zone,int i)
@@ -593,11 +594,8 @@ bool try_summon(tile_t *tile,type_t *type)
 }
 void spawn_player(tile_t *zone,int *pc)
 {
-	*pc=rand()%AREA;
-	if (!zone[*pc].wall&&!zone[*pc].c)
-		zone[*pc].c=player;
-	else
-		spawn_player(zone,pc);
+	*pc=random_empty_coord(zone);
+	zone[*pc].c=player;
 }
 char move_player(tile_t *zone,char dir,int *pc)
 {
@@ -670,6 +668,7 @@ void make_building(tile_t *zone,int pos,int w,int h)
 }
 void make_random_building(tile_t *zone)
 {
+	// Make a building that has a suitable area and isn't on the edge
 	int w=3+rand()%(WIDTH/4),h=3+rand()%(HEIGHT/4);
 	int pos=(1+rand()%(WIDTH-w-2))+(1+rand()%(HEIGHT-h-2))*WIDTH;
 	make_building(zone,pos,w,h);
@@ -678,14 +677,13 @@ void cull_walls(tile_t *zone)
 {
 	// Beware: ugly formatting ahead
 	int walls_removed;
-	do {
+	do { // While walls might still need removal
 		walls_removed=0;
+		// Remove walls which are flanked by floors
 		for (int i=WIDTH+1;i<AREA-WIDTH-1;i++)
 			if (char_in_string(zone[i].wall,"%+")
-					&&((zone[i+1].bg=='#'
-					&&zone[i-1].bg=='#')
-					||(zone[i+WIDTH].bg=='#'
-					&&zone[i-WIDTH].bg=='#'))) {
+					&&((zone[i+1].bg=='#'&&zone[i-1].bg=='#')
+					||(zone[i+WIDTH].bg=='#'&&zone[i-WIDTH].bg=='#'))) {
 				set_floor(&zone[i],i);
 				walls_removed++;
 			}
@@ -717,10 +715,11 @@ int *rand_fixed_sum(int n,int max)
 		new_arr[i]=arr[i+1]-arr[i];
 	arr=new_arr;
 	free(tmp);
-	return arr;
+	return arr; // Returns array of n random elements whose sum is max
 }
 tile_t *find_surface(tile_t *zone,char surface)
 {
+	// Return a suitable spawn tile following a restriction
 	switch (surface)
 	{
 		case 'G':
@@ -777,20 +776,28 @@ int dig_staircase(tile_t *zone,char dir)
 {
 	int c=random_floor_coord(zone);
 	set_bg(&zone[c],dir,TERM_COLORS_40M[BROWN]);
-	return c;
+	return c; // Return coordinate of new staircase
 }
 void create_dungeon(tile_t *dungeon)
 {
 	int m=AREA/96,b=AREA/96,typelist_length=0;
+	// Clear dungeon
 	free_creatures(dungeon);
+	// Rebuild dungeon structure
 	for (int i=0;i<AREA;i++)
 		set_tile(&dungeon[i],'%',rock_colors[rand()%2],'\0',NULL);
 	for (int i=0;i<b;i++)
 		make_random_building(dungeon);
 	cull_walls(dungeon);
+	if (b>1) {
+		for (int i=0;i<AREA/240;i++)
+			while (!make_path(dungeon,rand()%AREA));
+	}
+	// Count viable creature types
 	for (type_t *t=typelist;t;t=t->next)
-		if (t->dimension!='F')
+		if (t->dimension!='F'&&t->surface!='G')
 			typelist_length++;
+	// Figure out how many of each type to create and create them
 	int *pops=rand_fixed_sum(typelist_length,m);
 	int i=0;
 	for (type_t *t=typelist;t;t=t->next) {
@@ -801,11 +808,8 @@ void create_dungeon(tile_t *dungeon)
 		}
 	}
 	free(pops);
+	// Add a scepter
 	dungeon[random_empty_coord(dungeon)].c=make_creature(scepter);
-	if (b>1) {
-		for (int i=0;i<AREA/240;i++)
-			while (!make_path(dungeon,rand()%AREA));
-	}
 }
 int dist_to_wall(tile_t *zone,int pos,char dir)
 {
@@ -822,11 +826,13 @@ int dist_to_wall(tile_t *zone,int pos,char dir)
 }
 bool make_path(tile_t *zone,int pos)
 {
-	if (!char_in_string(zone[pos].bg,grass_chars)&&zone[pos].bg) {
-		return false;
-	}
+	// If the path origin is already a floor
+	if (zone[pos].bg&&!char_in_string(zone[pos].bg,grass_chars))
+		return false; // Report failure
+	// Remember path directions and lengths
 	int dist[2]={AREA,AREA};
 	char dirs[2]={'\0','\0'};
+	// Take note of the two shortest distances to a wall
 	for (int i=1;i<=4;i++) {
 		int d=dist_to_wall(zone,pos,2*i+'0');
 		if (d>0&&d<dist[1]) {
@@ -842,9 +848,10 @@ bool make_path(tile_t *zone,int pos)
 			}
 		}
 	}
-	if (dist[1]==AREA||!dirs[1]) {
-		return false;
-	}
+	// If a path can not be made
+	if (dist[1]==AREA||!dirs[1])
+		return false; // Report failure
+	// Otherwise, make the path
 	for (int i=0;i<2;i++) {
 		int d=pos+dist[i]*dir_offset(dirs[i]);
 		for (int j=0;j<dist[i];j++) {
@@ -857,15 +864,19 @@ bool make_path(tile_t *zone,int pos)
 }
 bool visible(tile_t *zone,int c1,int c2)
 {
+	// Make (x, y) coordinates p and q for c1 and c2 respectively
 	int p[2]={c1%WIDTH,c1/WIDTH};
 	int q[2]={c2%WIDTH,c2/WIDTH};
+	// Find the unit vector from p to q
 	int vec[2]={q[0]-p[0],q[1]-p[1]};
 	float magn=sqrt(pow(vec[0],2)+pow(vec[1],2));
 	float unitv[2]={vec[0]/magn,vec[1]/magn};
+	// For each additional length of that unit vector
 	for (float x=p[0],y=p[1];round(x)!=q[0]||round(y)!=q[1];x+=unitv[0],y+=unitv[1]) {
+		// If there is ever a wall at the nearest point
 		int coord=round(x)+round(y)*WIDTH;
 		if (zone[coord].wall)
-			return false;
+			return false; // Report failure
 	}
 	return true;
 }
@@ -873,6 +884,7 @@ int look_mode(tile_t *zone,int look_coord)
 {
 	int start=look_coord;
 	bool vis;
+	// Draw a cursor at the starting coordinate
 	move_cursor(look_coord%WIDTH,look_coord/WIDTH);
 	printf("%sX%s",TERM_COLORS_40M[7],RESET_COLOR);
 	char input='.';
@@ -906,7 +918,7 @@ int look_mode(tile_t *zone,int look_coord)
 						count++;
 				printf("# of this type remaining: %i",count);
 			} else
-				printf("[UNIQUE]");
+				printf("Unique specimen");
 		}
 	} while ((input=fgetc(stdin))!='q'&&input!='\n');
 	// Get rid of the yellow X
@@ -916,8 +928,10 @@ int look_mode(tile_t *zone,int look_coord)
 		move_cursor(0,HEIGHT+i);
 		clear_line();
 	}
+	// If 'enter' was pressed, return the last coordinate of the cursor
 	if (input=='\n')
 		return (vis?1:-1)*look_coord;
+	// Otherwise, return a sentinel value
 	return -1;
 }
 void player_cast_spell(tile_t *c_z,int p_c)
@@ -927,11 +941,13 @@ void player_cast_spell(tile_t *c_z,int p_c)
 	if (!player->spell)
 		player->spell=&raise;
 	/**/
+	// Clear the area under the screen
 	for (int i=1;i<lines_printed;i++) {
 		move_cursor(0,HEIGHT+i);
 		clear_line();
 	}
 	lines_printed=1;
+	// Print all of the player's spells
 	for (spell_t *s=c->spell;s;s=s->next) {
 		NEXT_LINE();
 		print_spell(s);
@@ -946,6 +962,7 @@ void player_cast_spell(tile_t *c_z,int p_c)
 			spell=spell->next;
 		move_cursor(0,HEIGHT+selected+1);
 		printf("%s%s",RESET_COLOR,spell->name);
+		// Change selected spell by input
 		if (dir_offset(input)==WIDTH&&selected<num_spells)
 			selected++;
 		else if (dir_offset(input)==-WIDTH&&selected>0)
@@ -964,8 +981,10 @@ void player_cast_spell(tile_t *c_z,int p_c)
 	}
 	lines_printed=1;
 	int target_coord=p_c;
+	// If the player cancelled, stop there
 	if (input=='q')
 		return;
+	// Select a target
 	move_cursor(0,HEIGHT);
 	clear_line();
 	printf("Selecting target...");
@@ -978,6 +997,7 @@ void player_cast_spell(tile_t *c_z,int p_c)
 		case TARGET:
 			target_coord=look_mode(c_z,p_c);
 	}
+	// Cast the spell
 	cast_spell(c_z,p_c,spell,target_coord);
 }
 void cast_spell(tile_t *zone,int caster_coord,spell_t *spell,int target_coord)
@@ -1013,6 +1033,7 @@ void cast_spell(tile_t *zone,int caster_coord,spell_t *spell,int target_coord)
 				printf("on ");
 				draw_creature(target->corpse);
 				printf(", ");
+	// Select a target
 			}
 			break;
 	}
@@ -1046,6 +1067,7 @@ void cast_spell(tile_t *zone,int caster_coord,spell_t *spell,int target_coord)
 				target->c->hp=target->c->max_hp;
 			draw_pos(zone,target_coord);
 	}
+	// Possibly increase caster's wisdom
 	if (!(rand()%20)&&caster->wis<10) {
 		NEXT_LINE();
 		draw_creature(caster);
