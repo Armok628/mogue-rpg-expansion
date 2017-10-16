@@ -86,7 +86,7 @@ void cast_spell(tile_t *zone,int caster_coord,spell_t *spell,int target_coord);
 void hide_invisible_tiles(tile_t *zone,int coord);
 void free_creature(creature_t *c);
 void free_creatures(tile_t *zone);
-void free_typelist(type_t *type);
+void free_type_list(type_t *type);
 // Global definitions
 static char
     	*grass_colors[2]={TERM_COLORS_40M[GREEN],TERM_COLORS_40M[LGREEN]},
@@ -94,7 +94,7 @@ static char
 	*wall_colors[2]={TERM_COLORS_40M[RED],TERM_COLORS_40M[LRED]},
 	*rock_colors[2]={TERM_COLORS_40M[GRAY],TERM_COLORS_40M[LGRAY]},
 	*grass_chars="\"\',.`";
-static type_t *typelist=NULL;
+static type_t *bestiary=NULL;
 static int lines_printed=1;
 // Main function
 int main(int argc,char **argv)
@@ -219,7 +219,7 @@ int main(int argc,char **argv)
 	free(field);
 	free_creatures(dungeon);
 	free(dungeon);
-	free_typelist(typelist);
+	free_type_list(bestiary);
 	// Clean up terminal
 	set_canon(true);
 	printf("%s",RESET_COLOR);
@@ -419,7 +419,7 @@ char move_tile(tile_t *zone,int pos,char dir)
 		// Redraw the changed positions
 		draw_pos(zone,pos);
 		draw_pos(zone,dest);
-		if (!(rand()%300)&&to->c->agi<10) {
+		if (!(rand()%150)&&to->c->agi<10) {
 			NEXT_LINE();
 			draw_creature(to->c);
 			printf(" is now more agile from moving.");
@@ -732,7 +732,7 @@ tile_t *find_surface(tile_t *zone,char surface)
 }
 void create_field(tile_t *field)
 {
-	int typelist_length=0;
+	int bestiary_length=0;
 	free_creatures(field);
 	// Set all tiles to grass
 	for (int i=0;i<AREA;i++)
@@ -741,19 +741,19 @@ void create_field(tile_t *field)
 	for (int i=0;i<AREA/96;i++)
 		make_random_building(field);
 	cull_walls(field);
-	if (!typelist) {
-		typelist=read_type_list("index");
-		add_type(random_type(),typelist); // Get some wildcards
+	if (!bestiary) {
+		bestiary=read_type_list("index");
+		add_type(random_type(),bestiary); // Get some wildcards
 	}
 	// Figure out how many creature types can spawn in this zone
-	for (type_t *t=typelist;t;t=t->next)
+	for (type_t *t=bestiary;t;t=t->next)
 		if (t->dimension!='D')
-			typelist_length++;
+			bestiary_length++;
 	// Find that many random numbers such that the sum is AREA/48
-	int *pops=rand_fixed_sum(typelist_length,AREA/48);
+	int *pops=rand_fixed_sum(bestiary_length,AREA/48);
 	int i=0;
 	// Spawn them appropriately
-	for (type_t *t=typelist;t;t=t->next) {
+	for (type_t *t=bestiary;t;t=t->next) {
 		if (t->dimension!='D') {
 			for (int j=0;j<pops[i];j++) {
 				tile_t *tile=find_surface(field,t->surface);
@@ -780,7 +780,7 @@ int dig_staircase(tile_t *zone,char dir)
 }
 void create_dungeon(tile_t *dungeon)
 {
-	int m=AREA/96,b=AREA/96,typelist_length=0;
+	int m=AREA/96,b=AREA/96,bestiary_length=0;
 	// Clear dungeon
 	free_creatures(dungeon);
 	// Rebuild dungeon structure
@@ -794,13 +794,13 @@ void create_dungeon(tile_t *dungeon)
 			while (!make_path(dungeon,rand()%AREA));
 	}
 	// Count viable creature types
-	for (type_t *t=typelist;t;t=t->next)
+	for (type_t *t=bestiary;t;t=t->next)
 		if (t->dimension!='F'&&t->surface!='G')
-			typelist_length++;
+			bestiary_length++;
 	// Figure out how many of each type to create and create them
-	int *pops=rand_fixed_sum(typelist_length,m);
+	int *pops=rand_fixed_sum(bestiary_length,m);
 	int i=0;
-	for (type_t *t=typelist;t;t=t->next) {
+	for (type_t *t=bestiary;t;t=t->next) {
 		if (t->dimension!='F'&&t->surface!='G') {
 			for (int j=0;j<pops[i];j++)
 				find_surface(dungeon,t->surface)->c=make_creature(t);
@@ -1101,14 +1101,14 @@ void free_creatures(tile_t *zone)
 		zone[i].corpse=NULL;
 	}
 }
-void free_typelist(type_t *type)
+void free_type_list(type_t *type)
 {
-	while (typelist) {
-		type_t *next=typelist->next;
-		free(typelist->name);
-		free(typelist->friends);
-		free(typelist->enemies);
-		free(typelist);
-		typelist=next;
+	while (type) {
+		type_t *next=type->next;
+		free(type->name);
+		free(type->friends);
+		free(type->enemies);
+		free(type);
+		type=next;
 	}
 }
