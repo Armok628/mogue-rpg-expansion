@@ -49,7 +49,6 @@ spell_t raise={.name="Raise Dead",.cost=100,.target=TARGET,.effect=RESURRECT/**/
 void draw_tile(tile_t *tile);
 void draw_pos(tile_t *zone,int pos);
 void draw_board(tile_t *zone);
-bool char_in_string(char c,char *string);
 int dir_offset(char dir);
 void set_wall (tile_t *tile,char wall,char *wall_c);
 void set_bg (tile_t *tile,char bg,char *bg_c);
@@ -148,6 +147,17 @@ int main(int argc,char **argv)
 			if (!los)
 				draw_board(c_z);
 			continue;
+		} else if (input=='~') {
+			add_type(random_type(bestiary),bestiary);
+			continue;
+		} else if (input=='B') {
+			clear_screen();
+			move_cursor(0,0);
+			print_type_list(bestiary); // Temporary
+			fgetc(stdin);
+			input='\0';
+			clear_screen();
+			draw_board(c_z);
 		} else if (input=='>'&&c_z[p_c].bg=='>'&&c_z[p_c].c==player) {
 			c_z[p_c].c=NULL;
 			create_dungeon(dungeon);
@@ -255,15 +265,6 @@ void draw_board(tile_t *zone)
 {
 	for (int i=0;i<AREA;i++)
 		draw_pos(zone,i);
-}
-bool char_in_string(char c,char *string)
-{
-	if (!string)
-		return false;
-	for (;*string;string++)
-		if (c==*string)
-			return true;
-	return false;
 }
 int dir_offset(char dir)
 {
@@ -748,7 +749,7 @@ void create_field(tile_t *field)
 	cull_walls(field);
 	if (!bestiary) {
 		bestiary=read_type_list("index");
-		add_type(random_type(),bestiary); // Get some wildcards
+		add_type(random_type(bestiary),bestiary); // Get some wildcards
 	}
 	// Figure out how many creature types can spawn in this zone
 	for (type_t *t=bestiary;t;t=t->next)

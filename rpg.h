@@ -244,13 +244,21 @@ creature_t *random_creature()
 	creature->spell=NULL;
 	return creature;
 }
-type_t *random_type()
+int char_in_string(char c,char *str)
 {
-	static char svals[3]={'F','G','B'};
-	static char dvals[3]={'F','D','B'};
+	if (!str)
+		return 0;
+	for (;*str;str++)
+		if (c==*str)
+			return 1;
+	return 0;
+}
+type_t *random_type(type_t *bestiary)
+{
+	// Give stuff random values
 	type_t *type=malloc(sizeof(type_t));
 	type->symbol=(char)RAND_IN_RANGE(33,126);
-	type->color=RAND_IN_RANGE(2,16);
+	type->color=RAND_IN_RANGE(1,16);
 	type->name=random_word(RAND_IN_RANGE(2,4));
 	type->name[0]-=32;
 	int i1=0,i2=0;
@@ -269,13 +277,51 @@ type_t *random_type()
 	i1=D(10); i2=D(10);
 	type->str[0]=MIN(i1,i2);
 	type->str[1]=MAX(i1,i2);
+	// Give type random spawn conditions
+	static char svals[3]={'F','G','B'};
+	static char dvals[3]={'F','D','B'};
 	type->surface=svals[rand()%3];
 	type->dimension=dvals[rand()%3];
-	// To-do: Find some way to randomize:
-	type->friends=NULL;
-	type->enemies=NULL;
+	// Figure out how long the type list is
+	int count=0;
+	for (type_t *b=bestiary;b;b=b->next)
+		count++;
+	// Allocate memory for worst-case scenario
+	type->friends=calloc(count,1);
+	type->enemies=calloc(count,1);
+	// Collect creature symbols
+	char syms[count+2],*sptr=syms+2;
+	syms[0]='@'; // Take the player into account
+	syms[1]=type->symbol; // Take themselves into account
+	for (type_t *b=bestiary;b;b=b->next)
+		*(sptr++)=b->symbol;
+	// Set random enemy values without repeats
+	sptr=type->enemies;
+	for (int i=0;i<count;i++)
+		if (!(rand()%3)&&!char_in_string(syms[i],type->enemies))
+			*(sptr++)=syms[i];
+	// Set random friend values without repeats
+	sptr=type->friends;
+	for (int i=0;i<count;i++)
+		if (!(rand()%3)&&!char_in_string(syms[i],type->enemies)
+				&&!char_in_string(syms[i],type->friends))
+			*(sptr++)=syms[i];
+	// Reallocate to save (a likely miniscule amount of) memory
+	if (strlen(type->friends))
+		type->friends=realloc(type->friends,strlen(type->friends)+1);
+	else {
+		free(type->friends);
+		type->friends=NULL; // Must be NULL if no entries to be displayed correctly
+	}
+	if (strlen(type->enemies))
+		type->enemies=realloc(type->enemies,strlen(type->enemies)+1);
+	else {
+		free(type->enemies);
+		type->enemies=NULL; // Must be NULL if no entries to be displayed correctly
+	}
+	// Initialize pointer as a formality
 	type->next=NULL;
-	print_type(type);
+	//print_type(type);
 	return type;
 }
 type_t *read_type_list(const char *filename)
