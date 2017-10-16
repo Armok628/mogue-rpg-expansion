@@ -128,8 +128,10 @@ int main(int argc,char **argv)
 	print_creature_stats(player);
 	// Control loop
 	char input;
-	bool has_scepter=false;
+	bool has_scepter=false,los=false;
 	for (;;) {
+		if (los)
+			hide_invisible_tiles(c_z,p_c);
 		input=fgetc(stdin);
 		if (input==27&&fgetc(stdin)==91)
 			input=fgetc(stdin);
@@ -141,7 +143,10 @@ int main(int argc,char **argv)
 			printf("Inspecting tile...");
 			look_mode(c_z,p_c);
 		} else if (input=='H') {
-			hide_invisible_tiles(c_z,p_c);
+			los=!los;
+			move_cursor(WIDTH,0);
+			if (!los)
+				draw_board(c_z);
 			continue;
 		} else if (input=='>'&&c_z[p_c].bg=='>'&&c_z[p_c].c==player) {
 			c_z[p_c].c=NULL;
@@ -1079,10 +1084,14 @@ void cast_spell(tile_t *zone,int caster_coord,spell_t *spell,int target_coord)
 }
 void hide_invisible_tiles(tile_t *zone,int coord)
 {
-	clear_screen();
+	//clear_screen();
 	for (int i=0;i<AREA;i++)
 		if (visible(zone,coord,i))
 			draw_pos(zone,i);
+		else {
+			move_cursor(i%WIDTH,i/WIDTH);
+			printf("%s ",TERM_COLORS_40M[0]);
+		}
 }
 void free_creature(creature_t *c)
 {
