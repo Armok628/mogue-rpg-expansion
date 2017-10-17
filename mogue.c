@@ -44,7 +44,7 @@ static type_t *scepter=&scepter_type;
 spell_t missile={.name="Magic Missile",.cost=30,.target=TARGET,.effect=DAMAGE};
 spell_t mend={.name="Mend Self",.cost=20,.target=SELF,.effect=HEAL/**/,.next=&missile/**/};
 spell_t touch={.name="Deathly Touch",.cost=100,.target=TOUCH,.effect=DAMAGE/**/,.next=&mend/**/};
-spell_t raise={.name="Raise Dead",.cost=100,.target=TARGET,.effect=RESURRECT/**/,.next=&touch/**/};
+spell_t resurrect={.name="Raise Dead",.cost=100,.target=TARGET,.effect=RESURRECT/**/,.next=&touch/**/};
 // Function prototypes
 void draw_tile(tile_t *tile);
 void draw_pos(tile_t *zone,int pos);
@@ -945,7 +945,7 @@ void player_cast_spell(tile_t *c_z,int p_c)
 	creature_t *c=player;
 	/* Temporary */
 	if (!player->spell)
-		player->spell=&raise;
+		player->spell=&resurrect;
 	/**/
 	// Clear the area under the screen
 	for (int i=1;i<lines_printed;i++) {
