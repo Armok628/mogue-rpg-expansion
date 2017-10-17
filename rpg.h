@@ -297,12 +297,12 @@ type_t *random_type(type_t *bestiary)
 		*(sptr++)=b->symbol;
 	// Set random enemy values without repeats
 	sptr=type->enemies;
-	for (int i=0;i<count;i++)
+	for (int i=0;i<count+2;i++)
 		if (!(rand()%3)&&!char_in_string(syms[i],type->enemies))
 			*(sptr++)=syms[i];
 	// Set random friend values without repeats
 	sptr=type->friends;
-	for (int i=0;i<count;i++)
+	for (int i=0;i<count+2;i++)
 		if (!(rand()%3)&&!char_in_string(syms[i],type->enemies)
 				&&!char_in_string(syms[i],type->friends))
 			*(sptr++)=syms[i];
