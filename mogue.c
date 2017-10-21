@@ -524,7 +524,7 @@ bool creature_cast_spell(tile_t *zone,int coord)
 			break;
 		case TARGET:
 			for (int i=0;i<AREA;i++)
-				if (i!=coord&&(spell->target==RESURRECT?zone[i].corpse:zone[i].c)
+				if (i!=coord&&(spell->effect==RESURRECT?zone[i].corpse:zone[i].c)
 						&&visible(zone,coord,i)) {
 					targets[index]=i;
 					index++;
@@ -533,9 +533,9 @@ bool creature_cast_spell(tile_t *zone,int coord)
 		case TOUCH:
 			for (int i=1;i<=9;i++) {
 				int os=dir_offset(i+'0');
-				if (os!=0&&(spell->target==RESURRECT?zone[coord+os].corpse
+				if (os!=0&&(spell->effect==RESURRECT?zone[coord+os].corpse
 							:zone[coord+os].c)) {
-					targets[index]=i;
+					targets[index]=coord+os;
 					index++;
 				}
 			}
@@ -545,9 +545,13 @@ bool creature_cast_spell(tile_t *zone,int coord)
 		if (!index)
 			return false; // Fail
 		target=targets[rand()%index];
+		creature_t *c=spell->effect==RESURRECT?zone[target].corpse:zone[target].c;
+		bool enemy_target=char_in_string(c->symbol,zone[coord].c->enemies);
+		bool friend_target=char_in_string(c->symbol,zone[coord].c->friends);
 		// If the target is inappropriate
-		if ((char_in_string(zone[target].c->symbol,zone[coord].c->enemies)&&spell->effect!=DAMAGE)
-				||(char_in_string(zone[target].c->symbol,zone[coord].c->friends)&&spell->effect==DAMAGE))
+		if ((spell->effect!=DAMAGE&&enemy_target)
+				||(spell->effect==RESURRECT&&enemy_target)
+				||(spell->effect==DAMAGE&&friend_target))
 			return false; // Fail
 	}
 	cast_spell(zone,coord,spell,target);
@@ -764,8 +768,11 @@ void create_field(tile_t *field)
 			for (int j=0;j<pops[i];j++) {
 				tile_t *tile=find_surface(field,t->surface);
 				tile->c=make_creature(t);
-				/* Temporary. To-do: Determine which creatures get what spells */
-				tile->c->spell=tile->c->wis>3?&mend:NULL;
+				/* Temporary. To-do: Better determine which creatures get what spells */
+				if (tile->c->wis>9)
+					tile->c->spell=&resurrect;
+				else if (tile->c->wis>3)
+					tile->c->spell=&mend;
 				/**/
 
 			}
@@ -808,8 +815,16 @@ void create_dungeon(tile_t *dungeon)
 	int i=0;
 	for (type_t *t=bestiary;t;t=t->next) {
 		if (t->dimension!='F'&&t->surface!='G') {
-			for (int j=0;j<pops[i];j++)
-				find_surface(dungeon,t->surface)->c=make_creature(t);
+			for (int j=0;j<pops[i];j++) {
+				tile_t *tile=find_surface(dungeon,t->surface);
+				tile->c=make_creature(t);
+			/* Temporary. To-do: Better determine which creatures get what spells */
+				if (tile->c->wis>9)
+					tile->c->spell=&resurrect;
+				else if (tile->c->wis>3)
+					tile->c->spell=&mend;
+			/**/
+			}
 			i++;
 		}
 	}
