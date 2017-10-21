@@ -533,6 +533,8 @@ bool creature_cast_spell(tile_t *zone,int coord)
 		case TOUCH:
 			for (int i=1;i<=9;i++) {
 				int os=dir_offset(i+'0');
+				if (OUT_OF_BOUNDS(coord+os,coord))
+					continue;
 				if (os!=0&&(spell->effect==RESURRECT?zone[coord+os].corpse
 							:zone[coord+os].c)) {
 					targets[index]=coord+os;
@@ -541,7 +543,7 @@ bool creature_cast_spell(tile_t *zone,int coord)
 			}
 	}
 	if (spell->target!=SELF) {
-		// If there is no target
+		// If there is no possible target
 		if (!index)
 			return false; // Fail
 		target=targets[rand()%index];
