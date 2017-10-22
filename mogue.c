@@ -664,9 +664,8 @@ char move_player(tile_t *zone,char dir,int *pc)
 	// Player can't do anything without health
 	if (player->hp<0)
 		return '\0';
-	if (dir=='m') { // If the player is casting something
+	if (dir=='m') // If the player is casting something
 		player_cast_spell(zone,*pc);
-	}
 	char result='\0';
 	if (zone[*pc].c!=player) // If the player coordinate has the wrong address
 		return '\0'; // Don't move
@@ -1043,7 +1042,7 @@ void player_cast_spell(tile_t *c_z,int p_c)
 		printf("\e[1;33;44m%s",spell->name); // (yellow on blue)
 	} while ((input=fgetc(stdin))!='q'&&input!='\n');
 	// Clean up
-	clear_log(0);
+	clear_log(1);
 	int target_coord=p_c;
 	// If the player cancelled, stop there
 	if (input=='q')
