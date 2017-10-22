@@ -11,8 +11,7 @@
 #define HEIGHT 24
 #define AREA (WIDTH*HEIGHT)
 #define CHECKER(x) (x%2^(x/WIDTH%2))
-#define ABS(x) ((x)<0?-(x):(x))
-#define OUT_OF_BOUNDS(dest,pos) (ABS(dest%WIDTH-pos%WIDTH)==WIDTH-1||0>dest||dest>AREA-1)
+#define OUT_OF_BOUNDS(dest,pos) (abs(dest%WIDTH-pos%WIDTH)==WIDTH-1||0>dest||dest>AREA-1)
 #define NEXT_LINE() move_cursor(0,HEIGHT+log_lines); log_lines++;
 // bool type definition
 typedef enum {false,true} bool;
@@ -143,14 +142,14 @@ int main(int argc,char **argv)
 				case 't':
 					add_type(random_type(bestiary),bestiary);
 					continue;
-				case '@':
+				case '@': // Note: Body-swapping is not memory safe
 					move_cursor(0,HEIGHT);
 					clear_line();
-					printf("Select a target:");
+					printf("Select a target to bodyswap:");
 					int target=look_mode(c_z,p_c);
 					if (target==-1)
 						break;
-					target=ABS(target); // ABS ignores visibility
+					target=abs(target); // abs ignores visibility
 					player=c_z[target].c;
 					p_c=target;
 					break;
@@ -249,6 +248,7 @@ int main(int argc,char **argv)
 		switch (move_player(c_z,input,&p_c)) {
 			case 'I':
 				has_scepter=true;
+				player->spell=&resurrect;
 				player->color=10;
 				draw_pos(c_z,p_c);
 				break;
@@ -620,6 +620,7 @@ void update(tile_t *zone)
 			switch (move_tile(zone,i,dir)) {
 				case 'I':
 					zone[i+dir_offset(dir)].c->color=PURPLE;
+					zone[i+dir_offset(dir)].c->spell=&resurrect;
 					draw_pos(zone,i+dir_offset(dir));
 					break;
 				case 'O':
