@@ -133,6 +133,7 @@ int main(int argc,char **argv)
 			hide_invisible_tiles(c_z,p_c);
 		input=fgetc(stdin);
 		if (!input) { // Debug key: ^` produces null
+			int target;
 			clear_log(0);
 			move_cursor(WIDTH,0);
 			printf("DEBUG");
@@ -140,16 +141,20 @@ int main(int argc,char **argv)
 			printf("Enter a debug key");
 			switch (fgetc(stdin)) {
 				case 't':
-					add_type(random_type(bestiary),bestiary);
+					move_cursor(0,HEIGHT+1);
+					type_t *type=random_type(bestiary);
+					print_type(type);
+					log_lines+=10;
+					add_type(type,bestiary);
 					continue;
 				case '@': // Note: Body-swapping is not memory safe
 					move_cursor(0,HEIGHT);
 					clear_line();
-					printf("Select a target to bodyswap:");
-					int target=look_mode(c_z,p_c);
+					printf("Select a target");
+					target=look_mode(c_z,p_c);
 					if (target==-1)
 						break;
-					target=abs(target); // abs ignores visibility
+					target=abs(target); // Absolute value ignores visibility
 					player=c_z[target].c;
 					p_c=target;
 					break;
