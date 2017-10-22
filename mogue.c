@@ -13,7 +13,7 @@
 #define CHECKER(x) (x%2^(x/WIDTH%2))
 #define ABS(x) ((x)<0?-(x):(x))
 #define OUT_OF_BOUNDS(dest,pos) (ABS(dest%WIDTH-pos%WIDTH)==WIDTH-1||0>dest||dest>AREA-1)
-#define NEXT_LINE() move_cursor(0,HEIGHT+lines_printed); lines_printed++;
+#define NEXT_LINE() move_cursor(0,HEIGHT+log_lines); log_lines++;
 // bool type definition
 typedef enum {false,true} bool;
 // Tile type definition
@@ -80,6 +80,7 @@ int dist_to_wall(tile_t *zone,int pos,char dir);
 bool make_path(tile_t *zone,int pos);
 bool visible(tile_t *zone,int c1,int c2);
 int look_mode(tile_t *zone,int look_coord);
+void clear_log(int preserve);
 void player_cast_spell(tile_t *c_z,int p_c);
 void cast_spell(tile_t *zone,int caster_coord,spell_t *spell,int target_coord);
 void hide_invisible_tiles(tile_t *zone,int coord);
@@ -94,7 +95,7 @@ static char
 	*rock_colors[2]={TERM_COLORS_40M[GRAY],TERM_COLORS_40M[LGRAY]},
 	*grass_chars="\"\',.`";
 static type_t *bestiary=NULL;
-static int lines_printed=1;
+static int log_lines=1;
 // Main function
 int main(int argc,char **argv)
 {
@@ -132,6 +133,43 @@ int main(int argc,char **argv)
 		if (los)
 			hide_invisible_tiles(c_z,p_c);
 		input=fgetc(stdin);
+		if (!input) { // Debug key: ^` produces null
+			clear_log(0);
+			move_cursor(WIDTH,0);
+			printf("DEBUG");
+			move_cursor(0,HEIGHT);
+			printf("Enter a debug key");
+			switch (fgetc(stdin)) {
+				case 't':
+					add_type(random_type(bestiary),bestiary);
+					continue;
+				case '@':
+					move_cursor(0,HEIGHT);
+					clear_line();
+					printf("Select a target:");
+					int target=look_mode(c_z,p_c);
+					if (target==-1)
+						break;
+					target=ABS(target); // ABS ignores visibility
+					player=c_z[target].c;
+					p_c=target;
+					break;
+				case 'H':
+					player->max_hp++;
+					break;
+				case 'R':
+					player->res++;
+					break;
+				case 'A':
+					player->agi++;
+					break;
+				case 'W':
+					player->wis++;
+					break;
+				case 'S':
+					player->str++;
+			}
+		}
 		if (input==27&&fgetc(stdin)==91)
 			input=fgetc(stdin);
 		if (input=='q')
@@ -146,9 +184,6 @@ int main(int argc,char **argv)
 			move_cursor(WIDTH,0);
 			if (!los)
 				draw_board(c_z);
-			continue;
-		} else if (input=='~') {
-			add_type(random_type(bestiary),bestiary);
 			continue;
 		} else if (input=='B') {
 			clear_screen();
@@ -615,11 +650,11 @@ char move_player(tile_t *zone,char dir,int *pc)
 	if (player->hp<player->max_hp&&player->hp>0)
 		player->hp+=0==rand()%10;
 	// Clear lines under screen and reset counter
-	for (int i=1;i<=lines_printed;i++) {
+	for (int i=1;i<=log_lines;i++) {
 		move_cursor(0,HEIGHT+i);
 		clear_line();
 	}
-	lines_printed=1;
+	log_lines=1;
 	// Player can't do anything without health
 	if (player->hp<0)
 		return '\0';
@@ -953,9 +988,17 @@ int look_mode(tile_t *zone,int look_coord)
 	}
 	// If 'enter' was pressed, return the last coordinate of the cursor
 	if (input=='\n')
-		return (vis?1:-1)*look_coord;
+		return (vis?1:-1)*look_coord; // Return a negative value if not visible
 	// Otherwise, return a sentinel value
 	return -1;
+}
+void clear_log(int preserve)
+{
+	for (int i=preserve;i<log_lines;i++) {
+		move_cursor(0,HEIGHT+i);
+		clear_line();
+	}
+	log_lines=preserve;
 }
 void player_cast_spell(tile_t *c_z,int p_c)
 {
@@ -965,17 +1008,13 @@ void player_cast_spell(tile_t *c_z,int p_c)
 		player->spell=&resurrect;
 	/**/
 	// Clear the area under the screen
-	for (int i=1;i<lines_printed;i++) {
-		move_cursor(0,HEIGHT+i);
-		clear_line();
-	}
-	lines_printed=1;
+	clear_log(1);
 	// Print all of the player's spells
 	for (spell_t *s=c->spell;s;s=s->next) {
 		NEXT_LINE();
 		print_spell(s);
 	}
-	int num_spells=lines_printed-2,selected=0;
+	int num_spells=log_lines-2,selected=0;
 	spell_t *spell;
 	char input='.';
 	do {
@@ -998,11 +1037,7 @@ void player_cast_spell(tile_t *c_z,int p_c)
 		printf("\e[1;33;44m%s",spell->name); // (yellow on blue)
 	} while ((input=fgetc(stdin))!='q'&&input!='\n');
 	// Clean up
-	for (int i=0;i<lines_printed;i++) {
-		move_cursor(0,HEIGHT+i);
-		clear_line();
-	}
-	lines_printed=1;
+	clear_log(0);
 	int target_coord=p_c;
 	// If the player cancelled, stop there
 	if (input=='q')
