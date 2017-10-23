@@ -1142,14 +1142,10 @@ void cast_spell(tile_t *zone,int caster_coord,spell_t *spell,int target_coord)
 }
 void hide_invisible_tiles(tile_t *zone,int coord)
 {
-	//clear_screen();
+	clear_screen();
 	for (int i=0;i<AREA;i++)
 		if (visible(zone,coord,i))
 			draw_pos(zone,i);
-		else {
-			move_cursor(i%WIDTH,i/WIDTH);
-			printf("%s ",TERM_COLORS_40M[0]);
-		}
 }
 void free_creature(creature_t *c)
 {
