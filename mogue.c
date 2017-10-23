@@ -1153,7 +1153,7 @@ void hide_invisible_tiles(tile_t *zone,int coord)
 }
 void free_creature(creature_t *c)
 {
-	if (!c||c==player)
+	if (!c||c==&player_c)
 		return;
 	if (!c->type)
 		free(c->name);
