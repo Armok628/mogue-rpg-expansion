@@ -113,7 +113,7 @@ int main(int argc,char **argv)
 	tile_t *field=calloc(AREA,sizeof(tile_t))
 		,*dungeon=calloc(AREA,sizeof(tile_t))
 		,*c_z;
-	int p_c,fs_c;
+	int p_c,fs_c,p_color;
 	// Initialize field
 	create_field(field);
 	fs_c=dig_staircase(field,'>');
@@ -242,7 +242,7 @@ int main(int argc,char **argv)
 			c_z[p_c].c=player;
 			c_z[p_c].corpse=NULL;
 			has_scepter=false;
-			player->color=9;
+			player->color=p_color;
 			player->hp=1;
 			draw_pos(c_z,p_c);
 		} else if (input=='S') {
@@ -254,6 +254,7 @@ int main(int argc,char **argv)
 			case 'I':
 				has_scepter=true;
 				player->spell=&resurrect;
+				p_color=player->color;
 				player->color=10;
 				draw_pos(c_z,p_c);
 				break;
@@ -1142,7 +1143,10 @@ void cast_spell(tile_t *zone,int caster_coord,spell_t *spell,int target_coord)
 }
 void hide_invisible_tiles(tile_t *zone,int coord)
 {
-	clear_screen();
+	for (int i=0;i<HEIGHT;i++) {
+		move_cursor(0,i);
+		clear_line();
+	}
 	for (int i=0;i<AREA;i++)
 		if (visible(zone,coord,i))
 			draw_pos(zone,i);
