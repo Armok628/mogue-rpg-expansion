@@ -132,7 +132,7 @@ int main(int argc,char **argv)
 		if (los)
 			hide_invisible_tiles(c_z,p_c);
 		input=fgetc(stdin);
-		if (!input) { // Debug key: ^` produces null
+		if (!input) { // Debug key: ^@ produces null
 			int target;
 			clear_log(0);
 			move_cursor(WIDTH,0);
