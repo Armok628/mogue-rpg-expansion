@@ -133,6 +133,7 @@ int main(int argc,char **argv)
 			hide_invisible_tiles(c_z,p_c);
 		input=fgetc(stdin);
 		if (!input) { // Debug key: ^@ produces null
+			// Please note: '@' and 'n' are not leak free or memory safe
 			int target;
 			clear_log(0);
 			move_cursor(WIDTH,0);
@@ -147,7 +148,7 @@ int main(int argc,char **argv)
 					log_lines+=10;
 					add_type(type,bestiary);
 					continue;
-				case '@': // Note: Body-swapping is not memory safe
+				case '@':
 					move_cursor(0,HEIGHT);
 					clear_line();
 					printf("Select a target");
@@ -157,6 +158,39 @@ int main(int argc,char **argv)
 					target=abs(target); // Absolute value ignores visibility
 					player=c_z[target].c;
 					p_c=target;
+					break;
+				case 'n':
+					if (player!=&player_c)
+						for (type_t *t=bestiary;t;t=t->next) {
+							if (t->name==player->name)
+								break;
+							if (!t->next)
+								free(player->name);
+						}
+					player->name=malloc(256);
+					move_cursor(0,HEIGHT);
+					clear_line();
+					printf("Enter a new name: ");
+					set_canon(true);
+					fgets(player->name,255,stdin);
+					set_canon(false);
+					player->name[strlen(player->name)-1]='\0';
+					player->name=realloc(player->name,strlen(player->name));
+					break;
+				case 's':
+					move_cursor(0,HEIGHT);
+					clear_line();
+					printf("Enter a new symbol");
+					player->symbol=fgetc(stdin);
+					move_cursor(0,HEIGHT);
+					clear_line();
+					printf("Enter a color index (0-15): ");
+					set_canon(true);
+					char tmp[4];
+					fgets(tmp,3,stdin);
+					set_canon(false);
+					sscanf(tmp,"%i",&player->color);
+					draw_pos(c_z,p_c);
 					break;
 				case 'H':
 					player->max_hp++;
