@@ -436,16 +436,20 @@ char move_tile(tile_t *zone,int pos,char dir)
 			} else {
 				NEXT_LINE();
 				draw_creature(from->c);
-				printf(" attacked ");
+				printf(" attacks ");
 				draw_creature(to->c);
 				printf(" for %i damage",damage);
+				if (damage>to->c->hp/5) {
+					printf(" and cripples it");
+					if (to->c->agi>0)
+						to->c->agi--;
+				}
 				to->c->hp-=damage;
 			}
 			if (to->c->hp>0) {
 				printf(". It has %i health left.\n",to->c->hp);
 				return '\0';
-			}
-			else { // To-do: Special cases for entering portals or collecting scepters
+			} else { // To-do: Special cases for entering portals or collecting scepters
 				printf(", killing it!\n");
 			}
 		}
@@ -649,6 +653,12 @@ void update(tile_t *zone)
 			// Give it a small chance to regenerate 1 HP
 			if (zone[i].c->hp<zone[i].c->max_hp)
 				zone[i].c->hp+=0==rand()%10;
+			// Give it a chance to regenerate 1 agility if totally crippled
+			if (zone[i].c->agi==0&&!(rand()%10))
+				zone[i].c->agi++;
+			// If the creature is still totally crippled, it can not move
+			if (zone[i].c->agi==0)
+				continue;
 			// Decide whether to cast a spell
 			if (zone[i].c->spell&&rand()%128<zone[i].c->wis) {
 				if (creature_cast_spell(zone,i))
