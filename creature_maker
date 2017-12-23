@@ -35,50 +35,30 @@ while (!&is_int($color) || 0>$color || $color>15) {
 	$color=<STDIN>;
 }
 ### Statistics ###
-print "What should be the range of possible maximum HP values? (e.g. 1-100) :: ";
-my $hp=<STDIN>;
-chomp $hp;
-while ($hp!~/^[0-9]+-[0-9]+$/) {
-	print "The input is invalid. Please try again. :: ";
-	$hp=<STDIN>;
-	chomp $hp;
+sub getrange () {
+	my $var=<STDIN>;
+	chomp $var;
+	while ($var!~/^[0-9]+-[0-9]+$/) {
+		print "The input is invalid. Please try again. :: ";
+		$var=<STDIN>;
+		chomp $var;
+	}
+	return $var;
 }
+print "What should be the range of possible maximum HP values? (e.g. 1-100) :: ";
+my $hp=&getrange();
 $hp=~s/-/h/;
 print "What should be the range of possible resolve values? (e.g. 1-10) :: ";
-my $res=<STDIN>;
-chomp $res;
-while ($res!~/^[0-9]+-[0-9]+$/) {
-	print "The input is invalid. Please try again. :: ";
-	$res=<STDIN>;
-	chomp $res;
-}
+my $res=&getrange();
 $res=~s/-/r/;
 print "What should be the range of possible agility values? (e.g. 1-10) :: ";
-my $agi=<STDIN>;
-chomp $agi;
-while ($agi!~/^[0-9]+-[0-9]+$/) {
-	print "The input is invalid. Please try again. :: ";
-	$agi=<STDIN>;
-	chomp $agi;
-}
+my $agi=&getrange();
 $agi=~s/-/a/;
 print "What should be the range of possible wisdom values? (e.g. 1-10) :: ";
-my $wis=<STDIN>;
-chomp $wis;
-while ($wis!~/^[0-9]+-[0-9]+$/) {
-	print "The input is invalid. Please try again. :: ";
-	$wis=<STDIN>;
-	chomp $wis;
-}
+my $wis=&getrange();
 $wis=~s/-/w/;
 print "What should be the range of possible strength values? (e.g. 1-10) :: ";
-my $str=<STDIN>;
-chomp $str;
-while ($str!~/^[0-9]+-[0-9]+$/) {
-	print "The input is invalid. Please try again. :: ";
-	$str=<STDIN>;
-	chomp $str;
-}
+my $str=&getrange();
 $str=~s/-/s/;
 ### Spawn Locations ###
 my $spawn;
@@ -101,10 +81,12 @@ print "Which creatures are its friends?\nPlease enter their characters, separate
 my $friends=<STDIN>;
 chomp $friends;
 $friends=~s/ //g;
+$friends='none' if (!$friends);
 print "Which creatures are its enemies?\nPlease enter their characters, separated by spaces. :: ";
 my $enemies=<STDIN>;
 chomp $enemies;
 $enemies=~s/ //g;
+$enemies='none' if (!$enemies);
 for (<$dir/*>) {
 	open(file,'<',$_) or die "Error reading $_\n: $!";
 	my $line=<file>;
@@ -112,6 +94,8 @@ for (<$dir/*>) {
 	my $cname=$1;
 	$line=~/F(.*) E(.*) (..)$/;
 	my ($cf,$ce,$cs)=($1,$2,$3);
+	$cf='' if ($cf eq 'none');
+	$ce='' if ($ce eq 'none');
 	print "Should a(n) $cname be a 'friend' or 'enemy' to a(n) $name? :: ";
 	my $str=<STDIN>;
 	chomp $str;
