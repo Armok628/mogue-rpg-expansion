@@ -1,0 +1,135 @@
+#!/usr/bin/perl
+use strict;
+my $dir=(@ARGV?$ARGV[0]:"hraws");
+(-d $dir) or die "'$dir' does not exist or is not a directory.";
+print "What do you want to call the creature? :: ";
+my $name=<STDIN>;
+chomp $name;
+### Appearance ###
+print "What symbol do you want a(n) ",$name," to have? :: ";
+my $symbol=<STDIN>;
+$symbol=(split //, $symbol)[0];
+print "What color do you want a(n) ",$name," to be?\n";
+my $i=0;
+foreach my $f (30..38) {
+	print "\e[0;$f;38m$i ";
+	$i++;
+	print "\e[1;$f;38m$i ";
+	$i++;
+	print "\e[0;39;39m\n";
+}
+print ":: ";
+my $color=<STDIN>;
+sub is_int ($) {
+	chomp $_[0];
+	return 1 if ($_[0]=~m/^-?[0-9]+$/);
+	return 0;
+}
+while (!&is_int($color) || 0>$color || $color>15) {
+	if (!&is_int($color)) {
+		print "An integer color code was expected.\n";
+	} else {
+		print "That color code is invalid.\n"
+	}
+	print "Please enter a number from 0 to 15 :: ";
+	$color=<STDIN>;
+}
+### Statistics ###
+print "What should be the range of possible maximum HP values? (e.g. 1-100) :: ";
+my $hp=<STDIN>;
+chomp $hp;
+while ($hp!~/^[0-9]+-[0-9]+$/) {
+	print "The input is invalid. Please try again. :: ";
+	$hp=<STDIN>;
+	chomp $hp;
+}
+$hp=~s/-/h/;
+print "What should be the range of possible resolve values? (e.g. 1-100) :: ";
+my $res=<STDIN>;
+chomp $res;
+while ($res!~/^[0-9]+-[0-9]+$/) {
+	print "The input is invalid. Please try again. :: ";
+	$res=<STDIN>;
+	chomp $res;
+}
+$res=~s/-/r/;
+print "What should be the range of possible agility values? (e.g. 1-100) :: ";
+my $agi=<STDIN>;
+chomp $agi;
+while ($agi!~/^[0-9]+-[0-9]+$/) {
+	print "The input is invalid. Please try again. :: ";
+	$agi=<STDIN>;
+	chomp $agi;
+}
+$agi=~s/-/a/;
+print "What should be the range of possible wisdom values? (e.g. 1-100) :: ";
+my $wis=<STDIN>;
+chomp $wis;
+while ($wis!~/^[0-9]+-[0-9]+$/) {
+	print "The input is invalid. Please try again. :: ";
+	$wis=<STDIN>;
+	chomp $wis;
+}
+$wis=~s/-/w/;
+print "What should be the range of possible strength values? (e.g. 1-100) :: ";
+my $str=<STDIN>;
+chomp $str;
+while ($str!~/^[0-9]+-[0-9]+$/) {
+	print "The input is invalid. Please try again. :: ";
+	$str=<STDIN>;
+	chomp $str;
+}
+$str=~s/-/s/;
+### Spawn Locations ###
+my $spawn;
+while ($spawn!~/^[FfGgBb][FfDdBb]$/) {
+	print "Where should a(n) $name appear naturally?\n(F)loor, (G)rass, or (B)oth? (F/G/B) :: ";
+	$spawn=(split //,<STDIN>)[0];
+	print "(F)ield, (D)ungeon, or (B)oth? (F/D/B) :: ";
+	$spawn=$spawn.(split //,<STDIN>)[0];
+	print "The set of inputs is invalid; please try again.\n" if ($spawn!~/^[FGB][FDB]$/);
+}
+### Relationships ###
+print "Your creature:\n$name - \e[",$color%2,';',30+int($color/2),";40m$symbol\e[0;39m\n\nExisting creatures:\n";
+for (<$dir/*>) {
+	open(file,'<',$_) or die "Error reading $_\n: $!";
+	<file>=~/^(.*) '(.)' ([0-9]+)/;
+	print "$1 - \e[",$3%2,';',30+int($3/2),";40m$2\e[0;39;39m\n";
+}
+print "Which creatures are its friends?\nPlease enter their characters, separated by spaces. :: ";
+my $friends=<STDIN>;
+chomp $friends;
+$friends=~s/ //g;
+print "Which creatures are its enemies?\nPlease enter their characters, separated by spaces. :: ";
+my $enemies=<STDIN>;
+chomp $enemies;
+$enemies=~s/ //g;
+for (<$dir/*>) {
+	open(file,'<',$_) or die "Error reading $_\n: $!";
+	my $line=<file>;
+	$line=~/^([^ ]*)/;
+	my $cname=$1;
+	$line=~/F(.*) E(.*) (..)$/;
+	my ($cf,$ce,$cs)=($1,$2,$3);
+	print "Should a(n) $cname be a 'friend' or 'enemy' to a(n) $name? :: ";
+	my $str=<STDIN>;
+	chomp $str;
+	if (lc($str) eq 'friend') {
+		print "Friend it is, then.\n";
+		$cf.=$symbol;
+	} elsif (lc($str) eq 'enemy') {
+		print "Enemy it is, then.\n";
+		$ce.=$symbol;
+	}
+	$line=~s/F[^ ]* E[^ ]* ..$/F$cf E$ce $cs/;
+	close file;
+	open(file,'>',$_);
+	print file $line;
+	close file;
+}
+### Finalize ###
+my $filename=$dir.'/'.(lc $name);
+open(file,'>',$filename);
+print file "$name '$symbol' $color $hp $res $agi $wis $str F$friends E$enemies $spawn\n";
+close(file);
+print "To use this creature in-game, add $filename to index above the bottom line\n";
